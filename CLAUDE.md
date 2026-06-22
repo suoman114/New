@@ -315,7 +315,8 @@ cd frontend && npm install && npm run dev
 - [x] rtp-media: AMR-WB OA 패킷화/RTP 스트림/통계, 묵음·손실·지터 (`backend/sim/rtp/`)
 - [x] tapper-feed: UDP 송신기(SIP→VCSM/RTP→VCMM), 포트할당, 페이싱 (`backend/sim/tapper/`)
       — 위 3종 합계 테스트 35건 통과, ruff clean. (BE 모드/실 음원 인코딩은 2차)
-- [ ] scenario: 시나리오 상태머신 + YAML 로더
+- [x] scenario: YAML 로더 + 기대값 산출 + MCPTT-GROUP-FLOOR 타임라인 엔진 (`backend/sim/scenario/`)
+      — sip+rtp+tapper 구동 엔드투엔드 동작(`backend/run_demo.py`), 전체 테스트 41건 통과
 - [ ] validator: 파일/DB/오디오/무결성 검증
 - [ ] rmq-monitor: RMQ 모니터/검증
 - [ ] dashboard-backend: REST + WebSocket + 로그 드릴다운 API

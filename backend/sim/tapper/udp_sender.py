@@ -48,12 +48,16 @@ class TapperFeeder:
             raise RuntimeError("TapperFeeder.start() 를 먼저 호출하세요.")
         return self._transport
 
-    async def send_sip(self, data: bytes, *, session_id: str = "", call_id: str = "",
-                       label: str = "SIP") -> None:
-        """SIP 메시지를 VCSM 으로 송신."""
+    async def send_sip(self, data: bytes, *, event: Optional[FlowEvent] = None,
+                       session_id: str = "", call_id: str = "", label: str = "SIP") -> None:
+        """SIP 메시지를 VCSM 으로 송신.
+
+        `event` 가 주어지면(상위 sip-engine 의 풍부한 sip_flow_event) 그것을 발행하고,
+        없으면 기본 요약 이벤트를 발행한다 (이벤트 중복 방지).
+        """
         self._ensure().sendto(data, (self._cfg.sip_host, self._cfg.sip_port))
         self.sent_sip += 1
-        await self._emit(FlowEvent(
+        await self._emit(event or FlowEvent(
             session_id=session_id, call_id=call_id or None, channel="SIP",
             direction="SIM->SUT", peer="VCSM", label=label,
             summary=f"SIP→VCSM {self._cfg.sip_host}:{self._cfg.sip_port} ({len(data)}B)",
