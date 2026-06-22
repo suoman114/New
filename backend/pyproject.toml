@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "uvcs-sim"
+version = "0.1.0"
+description = "LTE-R 녹취서버(uVCS) 검증 자동화 시뮬레이터 - backend"
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.6",
+    "pyyaml>=6.0",
+    "sqlalchemy>=2.0",
+    "pymysql>=1.1",        # MariaDB(TBL_RECORD_INFO) read-only
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.29",
+    "aio-pika>=9.4",       # RMQ shadow monitor
+    "numpy>=1.26",         # 오디오 비교
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.4",
+    "black>=24.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["sim*", "api*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.black]
+line-length = 100

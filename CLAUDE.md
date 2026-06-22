@@ -310,7 +310,7 @@ cd frontend && npm install && npm run dev
 ---
 
 ## 10. 진행 상태 보드 (오케스트레이터가 갱신)
-- [ ] platform: config/logging/eventbus/models/db client
+- [x] platform: config/logging/eventbus/models/db client — 구현+테스트 17건 통과 (`backend/sim/platform/`)
 - [ ] sip-engine: SIP 메시지/SDP, IMS·McPTT flow
 - [ ] rtp-media: AMR-WB 패킷화/송출, 묵음/손실
 - [ ] tapper-feed: UDP 포워딩 송신기
