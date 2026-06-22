@@ -1,0 +1,23 @@
+---
+# stage: validate  (담당: pkg-ansible + pkg-validator)
+# 사실 수집 → validate_result JSON 산출. 판정은 backend(pkg-validator). 스키마: docs/specs/validation-spec.md
+- name: Collect running kernel
+  ansible.builtin.command: uname -r
+  register: _uname
+  changed_when: false
+  tags: [stage_validate]
+
+- name: Build validate_result facts
+  ansible.builtin.set_fact:
+    validate_result:
+      host: "{{ inventory_hostname }}"
+      os_target: "{{ os_target }}"
+      facts:
+        running_kernel: "{{ _uname.stdout }}"
+        # TODO(pkg-ansible): installed_kernels, packages(버전), services, sysctl, files, repos 수집 추가.
+  tags: [stage_validate]
+
+- name: Expose validate_result for backend collection
+  ansible.builtin.debug:
+    var: validate_result
+  tags: [stage_validate]

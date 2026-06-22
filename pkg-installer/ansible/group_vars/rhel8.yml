@@ -1,0 +1,6 @@
+---
+os_target: rhel8
+pkg_mgr: dnf
+kernel_min_version: "4.18.0-348"
+use_module_streams: true
+grub_cfg_path: /boot/grub2/grub.cfg

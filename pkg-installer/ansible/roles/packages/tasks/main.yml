@@ -1,0 +1,17 @@
+---
+# stage: packages  (담당: pkg-ansible)
+# 프로파일 패키지 그룹 설치 (offline repo 한정). OS 분기는 os-matrix.md.
+- name: Compute profile package list
+  ansible.builtin.set_fact:
+    profile_packages: "{{ (profile_def.packages.common | default([]))
+                         + (profile_def.packages[os_target] | default([])) }}"
+  tags: [stage_packages]
+
+- name: Install profile packages
+  ansible.builtin.package:
+    name: "{{ profile_packages }}"
+    state: present
+  when: profile_packages | length > 0
+  tags: [stage_packages]
+
+# TODO(pkg-ansible): rhel8 use_module_streams 시 dnf module enable/install 처리. profile_def 주입 계약 확정.

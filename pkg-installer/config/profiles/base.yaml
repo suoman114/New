@@ -1,0 +1,28 @@
+# 설치 프로파일: base (최소). backend 가 extravars(profile_packages 등)로 ansible 에 주입.
+# 패키지는 폐쇄망 오프라인 미러에 존재하는 것만 허용(없으면 preflight/packages 단계에서 실패 보고).
+name: base
+description: 최소 베이스 패키지 + 기본 시스템 설정
+
+packages:
+  common:
+    - chrony
+    - vim-enhanced
+    - net-tools
+  centos7: []
+  rhel8: []
+
+services:
+  - name: chronyd
+    enabled: true
+    state: started
+
+sysctl:
+  net.ipv4.ip_forward: "0"
+
+limits:
+  - domain: "*"
+    type: nofile
+    item: hard
+    value: "65535"
+
+config_templates: []                 # 필요 시 {src, dest} 목록

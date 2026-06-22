@@ -1,0 +1,16 @@
+---
+# stage: offline-repo  (담당: pkg-offline-repo + pkg-ansible)
+# 폐쇄망 로컬 미러/번들 등록. 외부 인터넷 금지. 상세: docs/specs/offline-repo.md
+- name: Ensure offline bundle present
+  ansible.builtin.stat:
+    path: "{{ offline.bundle_path }}/repo/repodata"
+  register: _offline_repodata
+  tags: [stage_offline_repo]
+
+- name: Fail if offline repo missing
+  ansible.builtin.assert:
+    that: _offline_repodata.stat.exists
+    fail_msg: "오프라인 미러가 없습니다: {{ offline.bundle_path }}/repo (번들 배치 필요)"
+  tags: [stage_offline_repo]
+
+# TODO(pkg-offline-repo): GPG import, .repo 템플릿 작성, 외부 repo 비활성, clean/makecache, repoquery 검증.

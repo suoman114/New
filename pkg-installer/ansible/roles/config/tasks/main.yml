@@ -1,0 +1,21 @@
+---
+# stage: config  (담당: pkg-ansible)
+# 시스템 설정: sysctl/limits/services/templates. 멱등 필수. handler 로 서비스 재기동.
+- name: Apply sysctl settings
+  ansible.posix.sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    state: present
+    reload: true
+  loop: "{{ (profile_def.sysctl | default({})) | dict2items }}"
+  tags: [stage_config]
+
+- name: Enable and start services
+  ansible.builtin.systemd:
+    name: "{{ item.name }}"
+    enabled: "{{ item.enabled | default(true) }}"
+    state: "{{ item.state | default('started') }}"
+  loop: "{{ profile_def.services | default([]) }}"
+  tags: [stage_config]
+
+# TODO(pkg-ansible): limits.d 작성, config_templates(jinja2) 렌더, handler 정의. ansible.posix 콜렉션 폐쇄망 동봉.

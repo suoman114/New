@@ -1,0 +1,11 @@
+---
+# stage: kernel  (담당: pkg-ansible)
+# 커널 설치/업그레이드 (offline repo 한정). 재부팅은 reboot_allowed 일 때만.
+- name: Install/upgrade kernel from offline repo
+  ansible.builtin.package:
+    name: kernel
+    state: present
+  register: _kernel_pkg
+  tags: [stage_kernel]
+
+# TODO(pkg-ansible): grub 갱신, reboot_allowed 가드 하에 reboot + 부팅 커널 검증(uname -r >= kernel_min_version).
