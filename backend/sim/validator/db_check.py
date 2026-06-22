@@ -13,9 +13,11 @@ from ..scenario.expectations import ScenarioExpectations
 
 
 def _match_row(rows: list[RecordInfo], digits: str) -> RecordInfo | None:
+    """발언자/레그 digits 를 CALLER 또는 CALLEE 파일명에서 매칭(IMS 양레그 대응)."""
     for r in rows:
-        if r.caller_file_name and f"_{digits}_" in r.caller_file_name:
-            return r
+        for fn in (r.caller_file_name, r.callee_file_name):
+            if fn and f"_{digits}_" in fn:
+                return r
     return None
 
 
@@ -23,12 +25,13 @@ def check_db(exp: ScenarioExpectations, repo: RecordInfoRepository) -> list[Vali
     items: list[ValidationItem] = []
     rows = repo.by_call_id(exp.call_id)
     non_empty = [s for s in exp.talk_spurts if not s.expect_empty]
+    min_rows = exp.db_min_rows or len(non_empty)
 
     items.append(ValidationItem(
         category="DB", name="row_count",
-        status="PASS" if len(rows) >= len(non_empty) else "FAIL",
-        expected=f">={len(non_empty)}", actual=len(rows),
-        detail=f"TBL_RECORD_INFO rows={len(rows)} (non-empty spurts={len(non_empty)})"))
+        status="PASS" if len(rows) >= min_rows else "FAIL",
+        expected=f">={min_rows}", actual=len(rows),
+        detail=f"TBL_RECORD_INFO rows={len(rows)} (기대 최소 {min_rows})"))
 
     for spurt in non_empty:
         name = f"db[{spurt.index}] {spurt.talker_digits}"

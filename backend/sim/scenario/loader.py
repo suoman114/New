@@ -20,7 +20,7 @@ class MediaSpec(BaseModel):
     octet_align: bool = True
     mode_set: list[int] = Field(default_factory=lambda: [8])
     source_audio: Optional[str] = None
-    duration_sec: int = 10
+    duration_sec: float = 10
     pt: int = 98
 
 

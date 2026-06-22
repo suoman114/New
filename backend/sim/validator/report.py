@@ -47,12 +47,14 @@ class Validator:
                 result.add(item)
 
         # 오디오 골든 비교 (송출 frame → 골든 .awb vs 서버 파일)
+        exp_by_index = {s.index: s for s in exp.talk_spurts}
         for sr in spurts:
             frames = getattr(sr, "frames", None)
             if not frames:
                 continue
             golden = reconstruct_awb(frames, mode_set_max=self._mode)
-            actual = self._server_file_bytes(sr)
+            spurt_exp = exp_by_index.get(getattr(sr, "index", -1))
+            actual = self._server_file_bytes(spurt_exp)
             if actual is not None:
                 item = compare_awb(golden, actual, name=f"audio[{sr.index}]")
                 result.add(item)
@@ -64,20 +66,15 @@ class Validator:
         """단일 spurt 의 골든 .awb (디버그/대시보드용)."""
         return reconstruct_awb(getattr(spurt, "frames", []), mode_set_max=self._mode)
 
-    def _server_file_bytes(self, spurt) -> Optional[bytes]:
-        """서버 저장 파일 bytes 조회. fs_root 가 있으면 파일에서, 없으면 None."""
-        if not self._fs_root:
+    def _server_file_bytes(self, spurt_exp) -> Optional[bytes]:
+        """기대 파일명 정규식으로 서버 저장 파일 bytes 조회(IMS/MCPTT 공통)."""
+        if not self._fs_root or spurt_exp is None or not spurt_exp.name_regex:
             return None
-        from .file_check import find_file
-        # spurt 에 대응하는 expectation regex 가 필요하나, 여기서는 digits 로 단순 탐색
         from pathlib import Path
-        digits = "".join(c for c in spurt.talker_mdn if c.isdigit())
-        if digits.startswith("82"):
-            digits = digits[2:]
-        found = find_file(self._fs_root, rf"^M_.+_{digits}_.+\.awb$")
-        if found is None:
-            return None
-        return Path(found).read_bytes()
+
+        from .file_check import find_file
+        found = find_file(self._fs_root, spurt_exp.name_regex)
+        return Path(found).read_bytes() if found else None
 
     async def _emit(self, result: ValidationResult) -> None:
         if self._bus is None:
