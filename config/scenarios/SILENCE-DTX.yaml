@@ -1,0 +1,32 @@
+# 시나리오: 묵음(DTX) 구간 포함 (NO_DATA/SID → 묵음 패킷 변환 검증)
+# 근거: 설계서 부록7 묵음 packet, 부록5 SID/NO_DATA 처리
+id: SILENCE-DTX
+title: "MCPTT 그룹콜, 발언 중 묵음(DTX) 구간 → 묵음 패킷 변환 검증"
+service_type: MCPTT
+mcptt:
+  group_id: "98152020001"
+  group_display_name: "2호선-시험그룹"
+  members:
+    - mdn: "tel:+82585102802"
+media:
+  codec: AMR-WB
+  clock: 16000
+  octet_align: true
+  mode_set: [8]
+  source_audio: "audio/sample_16k.wav"
+floor_sequence:
+  - talker: "tel:+82585102802"
+    duration_sec: 4
+impair:
+  packet_loss_pct: 0
+  jitter_ms: 0
+  inject_silence: true        # 주기적 NO_DATA frame 삽입 → 골든에서 묵음 패킷으로 변환
+expect:
+  rmq:
+    change_sequence: [TAKEN, IDLE]
+    reason_code: 2000
+  file:
+    prefix: "M"
+    ext: "awb"
+  audio:
+    silence_substitution: true   # NO_DATA → write_mute(부록7)

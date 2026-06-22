@@ -133,3 +133,9 @@ Read RTP Payload until end packet
 - 송출한 frame 시퀀스로부터 **기대 .awb 파일**을 위 의사코드로 생성(golden).
 - 서버 저장 파일과 byte/frame 단위 비교. 묵음 변환·손실 채움까지 동일 규칙으로 판정.
 - 불일치 시 frame index/FT/길이 단위 diff 를 리포트.
+
+### 7.1 구현 현황 (`backend/sim/validator/reconstruct.py`)
+- `reconstruct_awb(frames)`: timestamp 무관, speech 그대로 + SID/NO_DATA→묵음 1개.
+- `reconstruct_from_packets(packets)`: **부록5 완전판** — 수신 RTP 패킷의 timestamp 증가분으로
+  손실/DTX 구간을 묵음 패킷으로 채운다. 연속 패킷 간 `gap=(now-old)/SAMPLES`, `gap>1`이면
+  `(gap-1)`개 묵음 채움. 검증기는 패킷이 있으면 이 경로를 우선 사용한다.

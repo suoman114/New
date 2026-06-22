@@ -318,7 +318,7 @@ cd frontend && npm install && npm run dev
 - [x] scenario: YAML 로더 + 기대값 산출 + MCPTT-GROUP-FLOOR/IMS-VOICE-INBOUND 타임라인 엔진 (`backend/sim/scenario/`)
       — sip+rtp+tapper 구동 엔드투엔드(`backend/run_demo.py`). IMS는 caller/callee 분리 녹취(2레그)
 - [x] validator: 묵음표(부록7)+골든 재구성(부록4/5)+오디오/파일/DB 검증 facade (`backend/sim/validator/`)
-      — 53건 통과. SID/NO_DATA→묵음, 손실 timestamp-gap 채움은 v2 확장
+      — SID/NO_DATA→묵음, **손실 timestamp-gap 묵음 채움(reconstruct_from_packets, 부록5 완전판) 구현**
 - [x] rmq-monitor: RMQ 디코드/헤더검증/floor 시퀀스·txn 페어링·에러코드, shadow monitor graceful degrade (`backend/sim/rmq/`)
       — 63건 통과. 실 로그 메시지(heartbeat_indi/recording_change TAKEN·IDLE/3001 에러) 기준
 - [x] dashboard-backend: FastAPI REST(시나리오/이벤트/세션/결과/메트릭) + /ws/flow WebSocket + 로그 드릴다운 (`backend/api/`)
