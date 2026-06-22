@@ -323,5 +323,6 @@ cd frontend && npm install && npm run dev
       — 63건 통과. 실 로그 메시지(heartbeat_indi/recording_change TAKEN·IDLE/3001 에러) 기준
 - [x] dashboard-backend: FastAPI REST(시나리오/이벤트/세션/결과/메트릭) + /ws/flow WebSocket + 로그 드릴다운 (`backend/api/`)
       — 71건 통과. EventBus 중계, run/stop 오케스트레이션, TestClient 검증
-- [ ] dashboard-frontend: ladder + 제어 + 로그 + 결과
+- [x] dashboard-frontend: React+TS(Vite) ladder/로그드릴다운/제어/세션/검증/성능 (`frontend/`)
+      — tsc 타입체크 + vite 빌드 통과, /ws/flow 실시간 + /api 프록시
 - [ ] perf: 부하 생성/메트릭 (확장)
