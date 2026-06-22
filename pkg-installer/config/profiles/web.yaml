@@ -1,0 +1,28 @@
+# 설치 프로파일: web (nginx). RHEL8 은 모듈 스트림 가능.
+name: web
+description: 웹 서버(nginx) + 기본 설정
+
+packages:
+  common:
+    - chrony
+  centos7:
+    - nginx
+  rhel8:
+    - nginx
+
+module_streams:                      # rhel8 전용(use_module_streams=true 일 때)
+  rhel8:
+    - name: nginx
+      stream: "1.20"
+
+services:
+  - name: nginx
+    enabled: true
+    state: started
+
+sysctl:
+  net.core.somaxconn: "1024"
+
+config_templates:
+  - src: "nginx.conf.j2"
+    dest: "/etc/nginx/nginx.conf"

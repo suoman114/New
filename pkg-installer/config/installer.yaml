@@ -1,0 +1,31 @@
+# 전역 설정 (pkg-platform 이 로드). 하드코딩 금지 — 모든 값은 여기/inventory 에서.
+controller:
+  host: "0.0.0.0"
+  port: 8080
+
+ansible:
+  project_dir: "../ansible"          # ansible-runner private_data_dir
+  playbook: "playbooks/site.yml"
+  inventory: "inventory/hosts.ini"
+
+policy:
+  fail_fast: true                    # packages/config 첫 실패 시 중단
+  reboot_allowed: false              # kernel 재부팅 허용(폐쇄망 기본 false)
+  dry_run: false                     # ansible --check 모드
+
+offline:
+  # 폐쇄망 오프라인 미러. 외부 인터넷 URL 금지(file:// 또는 내부 http 미러).
+  repo_name: "offline"
+  baseurl: "file:///opt/offline-bundle/repo"
+  gpgkey: "file:///opt/offline-bundle/gpg/RPM-GPG-KEY"
+  bundle_path: "/opt/offline-bundle"
+
+paths:
+  profiles_dir: "./profiles"
+  reports_dir: "../reports"
+  log_dir: "../reports/_logs"
+
+preflight:
+  min_disk_gb: 5
+  min_mem_mb: 1024
+  require_offline_only: true         # 인터넷 미사용 강제(common role assert)
