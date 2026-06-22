@@ -1,0 +1,43 @@
+# 시나리오: IMS 음성 인바운드 (AMR-WB) — 정상 녹취 검증
+# scenario 에이전트 loader 가 파싱하는 선언적 정의. (예시/템플릿)
+id: IMS-VOICE-INBOUND
+title: "IMS 음성 인바운드 AMR-WB 정상 녹취"
+service_type: IMS            # IMS | MCPTT
+call:
+  outbound: 0                # INBOUND=0, OUTBOUND=1, INBOUND_ONLY=2
+  from_no: "01011113333"     # caller MDN
+  to_no: "01012341234"       # callee MDN
+  conference_id: null
+media:
+  codec: AMR-WB              # AMR-WB | AMR
+  clock: 16000
+  octet_align: true
+  mode_set: [8]
+  source_audio: "audio/sample_16k.wav"
+  duration_sec: 10
+impair:                      # 현실/네거티브 시뮬레이션 (선택)
+  packet_loss_pct: 0
+  jitter_ms: 0
+  inject_silence: false
+timeline:                    # engine 이 전개하는 호 흐름
+  - step: INVITE
+  - step: WAIT_RINGING       # 180/200 (서버 미러링 시뮬레이션)
+  - step: ACK
+  - step: STREAM_RTP         # media.duration_sec 동안 송출
+  - step: BYE
+expect:                      # validator 기대값 (expectations 가 구체화)
+  file:
+    prefix: "I"              # IMS
+    ext: "awb"              # AMR-WB
+    dir_media: "VOICE"
+  rmq:
+    sequence: [recording_start_req, recording_start_res, recording_stop_req, recording_stop_res]
+    reason_code: 0
+  db:
+    call_session:
+      SERVICE_TYPE: "IMS"
+      CALLER_MDN: "01011113333"
+      CALLEE_MDN: "01012341234"
+    record_file:
+      AUDIO_EXTENSION: "awb"
+      FILE_STATUS: 2          # 저장 완료

@@ -1,0 +1,45 @@
+# uVCS 검증 시뮬레이터 전역 설정
+# 모든 host/port/경로는 여기서 관리한다 (코드 하드코딩 금지).
+
+# Tapper UDP 포워딩 주입 대상 (= 녹취서버 VCTP). 설계서 2.7/2.8 포트.
+tapper:
+  sip_host: "127.0.0.1"
+  sip_port: 10000              # VCTP SIP 수신 포트 (UDP)
+  rtp_host: "127.0.0.1"
+  rtp_port_base: 10001         # VCTP RTP 수신 포트 시작
+  rtp_port_count: 1000         # 10001 ~ 11000
+
+# 시험 대상(SUT) 산출물 접근 (읽기 전용)
+sut:
+  rec_root: "~/REC"            # 녹취 파일 루트 (file-storage.md 디렉토리 구조)
+  db:
+    driver: "mysql+pymysql"    # 실제 드라이버에 맞게 조정
+    host: "127.0.0.1"
+    port: 3306
+    user: "readonly"
+    password: ""
+    database: "uvcs"
+    readonly: true             # validator/platform.db 는 절대 쓰기 금지
+
+# RMQ 패시브 모니터 (shadow consumer). 접근 불가 시 graceful degrade.
+rmq:
+  enabled: true
+  host: "127.0.0.1"
+  port: 5672
+  vhost: "/"
+  user: "guest"
+  password: "guest"
+  exchange: ""                 # 관찰 대상 exchange/queue (환경에 맞게)
+
+# 대시보드 백엔드
+api:
+  host: "0.0.0.0"
+  port: 8000
+  cors_origins: ["http://localhost:5173"]
+
+# 시뮬레이터 일반
+sim:
+  scenarios_dir: "config/scenarios"
+  audio_dir: "audio"
+  event_ring_size: 5000        # EventBus late-join 백필 버퍼
+  log_dir: "logs"
