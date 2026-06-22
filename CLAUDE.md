@@ -311,9 +311,10 @@ cd frontend && npm install && npm run dev
 
 ## 10. 진행 상태 보드 (오케스트레이터가 갱신)
 - [x] platform: config/logging/eventbus/models/db client — 구현+테스트 17건 통과 (`backend/sim/platform/`)
-- [ ] sip-engine: SIP 메시지/SDP, IMS·McPTT flow
-- [ ] rtp-media: AMR-WB 패킷화/송출, 묵음/손실
-- [ ] tapper-feed: UDP 포워딩 송신기
+- [x] sip-engine: SIP 메시지/SDP 빌더·파서, CallerUA 상태머신 (`backend/sim/sip/`)
+- [x] rtp-media: AMR-WB OA 패킷화/RTP 스트림/통계, 묵음·손실·지터 (`backend/sim/rtp/`)
+- [x] tapper-feed: UDP 송신기(SIP→VCSM/RTP→VCMM), 포트할당, 페이싱 (`backend/sim/tapper/`)
+      — 위 3종 합계 테스트 35건 통과, ruff clean. (BE 모드/실 음원 인코딩은 2차)
 - [ ] scenario: 시나리오 상태머신 + YAML 로더
 - [ ] validator: 파일/DB/오디오/무결성 검증
 - [ ] rmq-monitor: RMQ 모니터/검증
