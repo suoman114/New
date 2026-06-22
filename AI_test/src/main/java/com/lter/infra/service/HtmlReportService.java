@@ -3,6 +3,7 @@ package com.lter.infra.service;
 import com.lter.infra.domain.entity.InfraConfig;
 import com.lter.infra.domain.entity.JobHistory;
 import com.lter.infra.domain.entity.TargetServer;
+import com.lter.infra.util.ReportFormat;
 import com.lter.infra.repository.JobHistoryRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -540,10 +541,7 @@ public class HtmlReportService {
 
     /** os_audit 항목별 태그 집계 → 상태 결정 */
     private String resolveAuditStatus(int ok, int warn, int miss, int fail) {
-        if (fail > 0)             return "NOK";
-        if (warn > 0 || miss > 0) return "COK";
-        if (ok   > 0)             return "OK";
-        return "SKIP";
+        return ReportFormat.auditStatus(ok, warn, miss, fail);
     }
 
     /**
@@ -822,11 +820,7 @@ public class HtmlReportService {
     }
 
     private static String esc(String s) {
-        if (s == null) return "";
-        return s.replace("&", "&amp;")
-                .replace("<", "&lt;")
-                .replace(">", "&gt;")
-                .replace("\"", "&quot;");
+        return ReportFormat.escapeHtml(s);
     }
 
     /** '\n' 구분 문자열을 <br> 태그로 변환하여 렌더링 */

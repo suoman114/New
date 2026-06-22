@@ -248,9 +248,16 @@ mvn spring-boot:run
 4. **폐쇄망 가드**: 어떤 에이전트도 외부 인터넷 의존 금지(설치 경로·UI 자산·보고서 포함).
 5. 새 로직은 가능한 한 **순수 함수로 분리 + JUnit 테스트**(`mvn test`).
 
-### 진행 상태 보드
-- [x] pkg-platform: 공통 기반 토대 정리 + `OsTarget`(CENTOS7/RHEL8) 추가 + `InventoryGenerator` 순수화,
-      JUnit 17건 통과(OsTarget/ApiResponse/ProcessResult/InventoryGenerator). 기존 R1.0.11 자산 재사용.
-- [ ] pkg-ansible / pkg-offline-repo / pkg-installer-backend / pkg-dashboard-frontend / pkg-validator / pkg-report
+### 진행 상태 보드 (JUnit 누적 53건 통과, `mvn test` BUILD SUCCESS)
+- [x] pkg-platform: 공통 기반 + `OsTarget`(CENTOS7/RHEL8) + `InventoryGenerator` 순수화. (OsTarget/ApiResponse/ProcessResult/InventoryGenerator)
+- [x] pkg-ansible: playbook 분류/번호prefix/정렬 규약을 `util/PlaybookCatalog` 로 단일화, SetupService 위임. (PlaybookCatalog 8건)
+- [x] pkg-offline-repo: 원격 배포 명령(scp/ssh/extract)+Git 자격증명 URL 을 `util/RemoteCommandBuilder` 로 추출, PackageDeployService/GitExecutor 위임. (7건)
+- [x] pkg-installer-backend: 런 순서 해석(SetupService.resolvePlaybooks/resolveResumeFrom)·SSE 로그 가드 테스트. (10건)
+- [x] pkg-validator: `ScriptExecutor.parseValidationResult` [OK]/[WARN]/[MISS]/[FAIL] 집계·통과판정 테스트. (5건)
+- [x] pkg-dashboard-frontend: 폐쇄망 가드 검증(static 외부 CDN 0건). UI 무리한 변경 없음.
+- [x] pkg-report: 보고서 상태환산/HTML 이스케이프를 `util/ReportFormat` 로 추출, HtmlReportService 위임. (6건)
+
+> 공통 패턴: 각 영역의 **순수 로직을 util 로 추출 → JUnit 고정 → 기존 서비스는 위임(동작 보존)**.
+> 다음 단계는 통합/E2E(`@WebMvcTest` 컨트롤러 계약, ansible dry-run, 파이프라인 오케스트레이션) 확장.
 
   
