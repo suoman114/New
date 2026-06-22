@@ -1,0 +1,27 @@
+- hosts: vcs 
+  remote_user: root
+
+  vars:
+     var1: "{{app_user}}"
+
+  tasks:
+
+   - name: ld so config copy(oam)
+     copy:
+        src: "{{ playbook_dir }}/../vcs_conf/oam.conf"
+        dest: /etc/ld.so.conf.d/
+
+   - name: detect installed java 1.8 directory
+     shell: ls /usr/lib/jvm/ | grep '^java-1\.8\.0-openjdk-[0-9]' | grep -v 'headless\|debug\|devel\|javadoc\|src' | head -1
+     register: java_dir
+
+   - name: ld so config generate(java)
+     copy:
+        content: "/usr/lib/jvm/{{ java_dir.stdout }}/lib/amd64/jli\n"
+        dest: /etc/ld.so.conf.d/java.conf
+
+   - name: setcap
+     shell: "setcap cap_net_raw,cap_net_admin=eip /usr/lib/jvm/{{ java_dir.stdout }}/jre/bin/java"
+
+   - name: ldconfig execute
+     shell: ldconfig

@@ -1,0 +1,38 @@
+- hosts: vcs 
+  remote_user: root 
+  become : yes
+  tasks:
+       - debug: var=ansible_nodename
+       - name: add rc.local to ring buffer
+         blockinfile:
+
+          path: /etc/rc.local
+          state:  present
+          insertafter: EOF
+          block: |
+                     ethtool -G ens4f0 rx 4096
+                     ethtool -G ens4f1 rx 4096
+                     ethtool -G ens1f0 rx 4096
+                     ethtool -G ens1f1 rx 4096
+                     mount -t tmpfs -o size=10g tmpfs /home/vcs/ramdisk
+                     iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 17080
+
+       - name: ring buffer set by command 
+         shell: "ethtool -G ens4f0 rx 4096"
+         register: result
+       - debug: var=result.stdout_lines
+
+       - name: ring buffer set by command 
+         shell: "ethtool -G ens4f1 rx 4096"
+         register: result
+       - debug: var=result.stdout_lines
+
+       - name: ring buffer set by command 
+         shell: "ethtool -G ens1f0 rx 4096"
+         register: result
+       - debug: var=result.stdout_lines
+
+       - name: ring buffer set by command 
+         shell: "ethtool -G ens1f1 rx 4096"
+         register: result
+       - debug: var=result.stdout_lines

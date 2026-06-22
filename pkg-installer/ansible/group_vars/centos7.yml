@@ -1,6 +1,0 @@
----
-os_target: centos7
-pkg_mgr: yum
-kernel_min_version: "3.10.0-1160"
-use_module_streams: false
-grub_cfg_path: /boot/grub2/grub.cfg

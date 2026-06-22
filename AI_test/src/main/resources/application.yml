@@ -1,0 +1,31 @@
+server:
+  port: 8080
+
+# 활성 프로파일 설정: dev(내장 H2) 또는 prod(MariaDB)
+# 실행 시 오버라이드: java -jar app.jar --spring.profiles.active=prod
+spring:
+  profiles:
+    active: dev
+
+  jpa:
+    open-in-view: false
+
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher
+
+logging:
+  level:
+    com.lter.infra: DEBUG
+    org.hibernate.SQL: DEBUG
+
+infra:
+  ansible:
+    playbook-dir: /root/lter_infra/ansible
+    inventory: /root/lter_infra/ansible/inventory/hosts
+  git:
+    local-base-dir: /opt/lter/infra/repos
+  script:
+    local-base-dir: /opt/lter/infra/scripts
+  package:
+    local-base-dir: /opt/lter/infra/packages

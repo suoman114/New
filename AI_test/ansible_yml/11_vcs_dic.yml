@@ -1,0 +1,61 @@
+- hosts: vcs
+  remote_user: root
+
+  tasks:
+   - name: bash shell copy
+     unarchive:
+        src: "{{ playbook_dir }}/../bash.tar.gz"
+        dest: /home/vcs
+
+   - name: extract empty vcs_dic
+     unarchive:
+        src: "{{ playbook_dir }}/../vcs_conf/vcs_dic.tar.gz"
+        dest: /home/vcs
+
+   - name: extract empty vcweb_dic
+     unarchive:
+        src: "{{ playbook_dir }}/../vcs_conf/vcweb_dic.tar.gz"
+        dest: /home/vcweb
+
+#   - name: vcs_pkg copy
+#     unarchive:
+#        src: /mnt/d/busan/vcs_pkg/vcs_busan_pkg.tar.gz
+#        dest: /home/vcs/
+   
+   - name: vcs_oam copy
+     unarchive:
+        src: "{{ playbook_dir }}/../vcs_pkg/vcs_oam.tar.gz"
+        dest: /home/vcs
+
+#   - name: vcweb copy
+#     unarchive:
+#        src: /mnt/d/busan/vcs_pkg/vcweb_pkg.tar.gz
+#        dest: /home/vcweb/
+
+   - name: vcapi rpm copy
+     copy:
+        src: "{{ playbook_dir }}/../vcs_pkg/vcapi-0.0.1-5.noarch.rpm"
+        dest: /root/rpm/api/
+
+   - name: find rpm files and register the result
+     find:
+        paths: /root/rpm/api/
+        patterns: "*.rpm"
+     register: rpm_files
+
+   - set_fact:
+        rpm_lists: "{{ rpm_files.files | map(attribute='path') | list}} "
+
+   - name: install rpm files
+     yum:
+        name: "{{rpm_lists}}"
+        state: present
+
+   - name: Create oam folder symbolic link
+     file:
+       src: "/home/vcs/REC"
+       dest: "/home/vcweb/vcweb/{{item}}"
+       state: link
+       force: yes
+     with_items:
+       - REC

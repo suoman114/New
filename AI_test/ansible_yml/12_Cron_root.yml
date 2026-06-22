@@ -1,0 +1,11 @@
+ hosts: vcs
+  remote_user: root
+  vars:
+     var1: "{{group_names[1]}}"
+  tasks:
+   - debug: var=group_names[1]
+
+   - name: hp healh && Only Use PNF
+     cron:
+      name: "check hp health"
+      job: "/bin/sh ~{{var1}}/HOME/data/script/chk_hw_hplinux.sh -i > /dev/null 2>&1"

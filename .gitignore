@@ -23,3 +23,7 @@ logs/
 .DS_Store
 .idea/
 .vscode/
+
+# Java/Maven build output
+target/
+AI_test/target/
