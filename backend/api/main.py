@@ -23,8 +23,11 @@ from .ws import router as ws_router
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     configure_logging()
-    app.state.app = AppState()
+    state = AppState()
+    app.state.app = state
+    await state.start_rmq()          # RMQ shadow monitor (graceful degrade)
     yield
+    await state.rmq.close()
 
 
 def create_app(state: AppState | None = None) -> FastAPI:

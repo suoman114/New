@@ -69,6 +69,23 @@ async def perf_last(request: Request):
     return request.app.state.app.last_perf or {}
 
 
+@router.get("/integration/health")
+async def integration_health(request: Request):
+    """실 SUT 연동 상태(DB/RMQ/파일시스템 reachability)."""
+    return request.app.state.app.integration_health()
+
+
+@router.post("/validate")
+async def validate(session_id: str, request: Request):
+    """세션 실행 결과를 실 SUT 산출물(DB/파일/RMQ)과 대조 검증."""
+    app = request.app.state.app
+    try:
+        result = await app.validate_session(session_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail=f"unknown session {session_id}")
+    return result.model_dump()
+
+
 def _run_summary(run) -> dict:
     return {
         "session_id": run.session_id,

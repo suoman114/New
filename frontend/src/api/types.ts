@@ -87,3 +87,10 @@ export interface PerfSummary {
   total_packets: number;
   wall_ms: number;
 }
+
+export interface IntegrationHealth {
+  db: { reachable: boolean; table: string; host: string; database: string };
+  rmq: { enabled: boolean; host: string; tracked_calls: number };
+  fs: { active_root: string | null; ramdisk: boolean; nas: boolean };
+  inject_mode: string;
+}

@@ -328,3 +328,5 @@ cd frontend && npm install && npm run dev
       — tsc 타입체크 + vite 빌드 통과, /ws/flow 실시간 + /api 프록시
 - [x] perf: ramp-up 부하생성 + 메트릭(setup latency/duration p50·p95·p99/throughput/실패율) (`backend/sim/perf/`)
       — 77건 통과. /api/perf/run·/api/perf, 대시보드 부하시험 패널, perf 결과 SYS 이벤트. 대규모(~2000+)는 확장 지점
+- [x] 통합시험: 실 SUT 연동(MariaDB TBL_RECORD_INFO/RMQ shadow/램디스크), env override, /api/integration/health·/api/validate, 대시보드 헬스칩·세션별 검증 (`docs/specs/integration.md`)
+      — 99건 통과. 전부 graceful degrade(미연결 시 해당 검증만 스킵)

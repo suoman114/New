@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useFlowSocket } from "./api/useFlowSocket";
-import type { FlowEvent } from "./api/types";
+import { api } from "./api/client";
+import type { FlowEvent, IntegrationHealth } from "./api/types";
 import { ScenarioControl } from "./components/ScenarioControl";
 import { LadderDiagram } from "./components/LadderDiagram";
 import { LogDrawer } from "./components/LogDrawer";
@@ -14,12 +15,28 @@ export default function App() {
   const [filterCallId, setFilterCallId] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [scenarioId, setScenarioId] = useState<string>("");
+  const [health, setHealth] = useState<IntegrationHealth | null>(null);
+
+  useEffect(() => {
+    const tick = () => api.integrationHealth().then(setHealth).catch(() => {});
+    tick();
+    const t = setInterval(tick, 5000);
+    return () => clearInterval(t);
+  }, []);
 
   return (
     <div className="app">
       <header className="topbar">
         <h1>uVCS 검증 자동화 시뮬레이터</h1>
         <span className="sub">LTE-R 녹취서버 (MCPTT/IMS) 검증 대시보드</span>
+        {health && (
+          <span className="health">
+            <span className={"dot " + (health.db.reachable ? "on" : "off")}>DB</span>
+            <span className={"dot " + (health.rmq.enabled ? "on" : "off")}>RMQ</span>
+            <span className={"dot " + (health.fs.active_root ? "on" : "off")}>FS</span>
+            <span className="sub">{health.inject_mode}</span>
+          </span>
+        )}
       </header>
 
       <div className="layout">

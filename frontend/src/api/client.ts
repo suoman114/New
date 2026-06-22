@@ -1,6 +1,7 @@
 // REST client (dashboard-backend).
 import type {
   EventLogs,
+  IntegrationHealth,
   Metrics,
   PerfSummary,
   ScenarioInfo,
@@ -42,4 +43,7 @@ export const api = {
   perfRun: (scenario_id: string, total: number, cps: number) =>
     post<PerfSummary>("/api/perf/run", { scenario_id, total, cps, realtime: false }),
   perfLast: () => get<PerfSummary>("/api/perf"),
+  integrationHealth: () => get<IntegrationHealth>("/api/integration/health"),
+  validate: (session_id: string) =>
+    post<ValidationResult>(`/api/validate?session_id=${session_id}`, {}),
 };

@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -86,7 +87,36 @@ def find_config_path(start: Optional[Path] = None) -> Path:
 
 
 def load_config(path: Optional[str | Path] = None) -> SimConfig:
-    """YAML 을 읽어 SimConfig 로 검증/반환. path 미지정 시 자동 탐색."""
+    """YAML 을 읽어 SimConfig 로 검증/반환. path 미지정 시 자동 탐색.
+
+    비밀정보/배포 환경값은 환경변수로 override 한다(yaml 에 비밀 미기재).
+    """
     cfg_path = Path(path) if path else find_config_path()
     data = yaml.safe_load(cfg_path.read_text(encoding="utf-8")) or {}
-    return SimConfig.model_validate(data)
+    cfg = SimConfig.model_validate(data)
+    return _apply_env(cfg)
+
+
+def _apply_env(cfg: SimConfig) -> SimConfig:
+    """환경변수 override (실 서버 통합시험용). 미설정 시 yaml 값 유지."""
+    g = os.getenv
+    db = cfg.sut.db
+    db.host = g("UVCS_DB_HOST", db.host)
+    db.port = int(g("UVCS_DB_PORT", str(db.port)))
+    db.user = g("UVCS_DB_USER", db.user)
+    db.password = g("UVCS_DB_PASSWORD", db.password)
+    db.database = g("UVCS_DB_NAME", db.database)
+
+    r = cfg.rmq
+    if g("UVCS_RMQ_ENABLED") is not None:
+        r.enabled = g("UVCS_RMQ_ENABLED", "").lower() in ("1", "true", "yes")
+    r.host = g("UVCS_RMQ_HOST", r.host)
+    r.port = int(g("UVCS_RMQ_PORT", str(r.port)))
+    r.user = g("UVCS_RMQ_USER", r.user)
+    r.password = g("UVCS_RMQ_PASSWORD", r.password)
+    r.exchange = g("UVCS_RMQ_EXCHANGE", r.exchange)
+
+    cfg.sut.rec_ramdisk = g("UVCS_REC_RAMDISK", cfg.sut.rec_ramdisk)
+    cfg.sut.rec_nas = g("UVCS_REC_NAS", cfg.sut.rec_nas)
+    cfg.inject_mode = g("UVCS_INJECT_MODE", cfg.inject_mode)
+    return cfg

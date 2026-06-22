@@ -22,6 +22,7 @@ body {
 }
 .topbar h1 { font-size: 16px; margin: 0; }
 .topbar .sub { color: var(--muted); font-size: 12px; }
+.health { margin-left: auto; display: flex; align-items: center; gap: 6px; }
 
 .layout { display: grid; grid-template-columns: 320px 1fr 380px; flex: 1; min-height: 0; }
 .left, .right { border-right: 1px solid var(--line); overflow: auto; padding: 10px; }
