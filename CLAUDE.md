@@ -325,4 +325,5 @@ cd frontend && npm install && npm run dev
       — 71건 통과. EventBus 중계, run/stop 오케스트레이션, TestClient 검증
 - [x] dashboard-frontend: React+TS(Vite) ladder/로그드릴다운/제어/세션/검증/성능 (`frontend/`)
       — tsc 타입체크 + vite 빌드 통과, /ws/flow 실시간 + /api 프록시
-- [ ] perf: 부하 생성/메트릭 (확장)
+- [x] perf: ramp-up 부하생성 + 메트릭(setup latency/duration p50·p95·p99/throughput/실패율) (`backend/sim/perf/`)
+      — 77건 통과. /api/perf/run·/api/perf, 대시보드 부하시험 패널, perf 결과 SYS 이벤트. 대규모(~2000+)는 확장 지점

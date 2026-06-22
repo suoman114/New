@@ -75,3 +75,15 @@ export interface Metrics {
   events_buffered: number;
   ws_subscribers: number;
 }
+
+export interface PerfSummary {
+  total: number;
+  success: number;
+  failed: number;
+  failure_rate: number;
+  throughput_sps: number;
+  duration_ms: { p50: number; p95: number; p99: number };
+  setup_latency_ms: { p50: number; p95: number };
+  total_packets: number;
+  wall_ms: number;
+}

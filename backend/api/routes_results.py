@@ -3,8 +3,16 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Request
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/api", tags=["results"])
+
+
+class PerfRequest(BaseModel):
+    scenario_id: str
+    total: int = 10
+    cps: float = 5.0
+    realtime: bool = False
 
 
 @router.get("/sessions")
@@ -44,6 +52,21 @@ async def get_result(session_id: str, request: Request):
 @router.get("/metrics")
 async def metrics(request: Request):
     return request.app.state.app.metrics()
+
+
+@router.post("/perf/run")
+async def perf_run(req: PerfRequest, request: Request):
+    app = request.app.state.app
+    try:
+        return await app.run_load(req.scenario_id, total=req.total, cps=req.cps,
+                                  realtime=req.realtime)
+    except KeyError:
+        raise HTTPException(status_code=404, detail=f"unknown scenario {req.scenario_id}")
+
+
+@router.get("/perf")
+async def perf_last(request: Request):
+    return request.app.state.app.last_perf or {}
 
 
 def _run_summary(run) -> dict:

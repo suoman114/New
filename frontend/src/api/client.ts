@@ -2,6 +2,7 @@
 import type {
   EventLogs,
   Metrics,
+  PerfSummary,
   ScenarioInfo,
   SessionInfo,
   ValidationResult,
@@ -38,4 +39,7 @@ export const api = {
   results: () => get<Record<string, ValidationResult>>("/api/results"),
   eventLogs: (eventId: string) => get<EventLogs>(`/api/events/${eventId}/logs`),
   metrics: () => get<Metrics>("/api/metrics"),
+  perfRun: (scenario_id: string, total: number, cps: number) =>
+    post<PerfSummary>("/api/perf/run", { scenario_id, total, cps, realtime: false }),
+  perfLast: () => get<PerfSummary>("/api/perf"),
 };

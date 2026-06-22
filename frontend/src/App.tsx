@@ -13,6 +13,7 @@ export default function App() {
   const [selected, setSelected] = useState<FlowEvent | null>(null);
   const [filterCallId, setFilterCallId] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [scenarioId, setScenarioId] = useState<string>("");
 
   return (
     <div className="app">
@@ -23,7 +24,11 @@ export default function App() {
 
       <div className="layout">
         <aside className="left">
-          <ScenarioControl connected={connected} onRan={() => setRefreshKey((k) => k + 1)} />
+          <ScenarioControl
+            connected={connected}
+            onRan={() => setRefreshKey((k) => k + 1)}
+            onScenario={setScenarioId}
+          />
           <SessionTable refreshKey={refreshKey} activeCallId={filterCallId} onPick={setFilterCallId} />
           <ValidationReport events={events} />
         </aside>
@@ -35,7 +40,7 @@ export default function App() {
             onSelect={setSelected}
             filterCallId={filterCallId}
           />
-          <PerfPanel events={events} />
+          <PerfPanel events={events} scenarioId={scenarioId} />
         </main>
 
         <aside className="right">

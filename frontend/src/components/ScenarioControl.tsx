@@ -3,7 +3,11 @@ import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import type { ScenarioInfo } from "../api/types";
 
-export function ScenarioControl(props: { onRan: (ids: string[]) => void; connected: boolean }) {
+export function ScenarioControl(props: {
+  onRan: (ids: string[]) => void;
+  onScenario: (id: string) => void;
+  connected: boolean;
+}) {
   const [scenarios, setScenarios] = useState<ScenarioInfo[]>([]);
   const [selected, setSelected] = useState<string>("");
   const [sessionCount, setSessionCount] = useState(1);
@@ -11,14 +15,20 @@ export function ScenarioControl(props: { onRan: (ids: string[]) => void; connect
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const pick = (id: string) => {
+    setSelected(id);
+    props.onScenario(id);
+  };
+
   useEffect(() => {
     api
       .scenarios()
       .then((s) => {
         setScenarios(s);
-        if (s.length) setSelected(s[0].id);
+        if (s.length) pick(s[0].id);
       })
       .catch((e) => setError(String(e)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const run = async () => {

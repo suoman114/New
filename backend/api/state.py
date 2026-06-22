@@ -16,6 +16,7 @@ from sim.platform.logging import default_store
 from sim.platform.models import SessionInfo, ValidationResult
 from sim.scenario import ScenarioEngine, RunResult, load_all
 from sim.scenario.engine import Feeder
+from sim.perf import LoadGenerator, LoadSpec, make_default_runner, perf_flow_event
 from sim.tapper.port_alloc import RtpPortAllocator
 from sim.tapper.udp_sender import TapperFeeder
 
@@ -33,6 +34,7 @@ class AppState:
         self.results: dict[str, ValidationResult] = {}
         self._tasks: dict[str, asyncio.Task] = {}
         self._feeder_factory = feeder_factory
+        self.last_perf: dict | None = None
 
     def _make_feeder(self) -> Feeder:
         if self._feeder_factory:
@@ -87,6 +89,22 @@ class AppState:
         finally:
             if started and isinstance(feeder, TapperFeeder):
                 await feeder.close()
+
+    async def run_load(self, scenario_id: str, *, total: int = 10, cps: float = 5.0,
+                       realtime: bool = False) -> dict:
+        """부하 시험: scenario 엔진을 N 세션 ramp-up 구동하고 요약을 반환."""
+        if scenario_id not in self.scenarios:
+            raise KeyError(scenario_id)
+        ports = RtpPortAllocator(self.config.tapper.rtp_port_base,
+                                 self.config.tapper.rtp_port_count)
+        runner = make_default_runner(feeder_factory=self._make_feeder, port_alloc=ports,
+                                     bus=self.bus, realtime=realtime)
+        gen = LoadGenerator(runner)
+        report = await gen.run(self.scenarios[scenario_id],
+                               LoadSpec(total=total, cps=cps, realtime=realtime))
+        await self.bus.publish(perf_flow_event(report, scenario_id=scenario_id))
+        self.last_perf = report.summary()
+        return self.last_perf
 
     async def stop_session(self, session_id: str) -> bool:
         task = self._tasks.get(session_id)
