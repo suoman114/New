@@ -14,7 +14,7 @@ from ..scenario.expectations import ScenarioExpectations
 from .audio_check import compare_awb
 from .db_check import check_db
 from .file_check import check_files
-from .reconstruct import reconstruct_awb
+from .reconstruct import reconstruct_awb, reconstruct_from_packets
 
 
 class Validator:
@@ -46,13 +46,12 @@ class Validator:
             for item in check_db(exp, self._repo):
                 result.add(item)
 
-        # 오디오 골든 비교 (송출 frame → 골든 .awb vs 서버 파일)
+        # 오디오 골든 비교 (송출 → 골든 .awb vs 서버 파일)
         exp_by_index = {s.index: s for s in exp.talk_spurts}
         for sr in spurts:
-            frames = getattr(sr, "frames", None)
-            if not frames:
+            golden = self._golden_for(sr)
+            if golden is None:
                 continue
-            golden = reconstruct_awb(frames, mode_set_max=self._mode)
             spurt_exp = exp_by_index.get(getattr(sr, "index", -1))
             actual = self._server_file_bytes(spurt_exp)
             if actual is not None:
@@ -62,9 +61,19 @@ class Validator:
         await self._emit(result)
         return result
 
+    def _golden_for(self, spurt) -> Optional[bytes]:
+        """spurt 의 골든 .awb. 패킷(timestamp)이 있으면 손실/묵음 채움 재구성을 우선."""
+        packets = getattr(spurt, "packets", None)
+        if packets:
+            return reconstruct_from_packets(packets, mode_set_max=self._mode)
+        frames = getattr(spurt, "frames", None)
+        if frames:
+            return reconstruct_awb(frames, mode_set_max=self._mode)
+        return None
+
     def reconstruct_golden(self, spurt) -> bytes:
         """단일 spurt 의 골든 .awb (디버그/대시보드용)."""
-        return reconstruct_awb(getattr(spurt, "frames", []), mode_set_max=self._mode)
+        return self._golden_for(spurt) or b""
 
     def _server_file_bytes(self, spurt_exp) -> Optional[bytes]:
         """기대 파일명 정규식으로 서버 저장 파일 bytes 조회(IMS/MCPTT 공통)."""

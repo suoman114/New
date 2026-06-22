@@ -51,6 +51,8 @@ class SpurtResult:
     stats: StreamStats
     # 실제 송신된 frame(손실 반영) — validator 골든 재구성용
     frames: list[AmrFrame] = field(default_factory=list)
+    # 실제 송신된 RTP 패킷(seq/timestamp 보유) — timestamp-gap 묵음 채움 재구성용
+    packets: list = field(default_factory=list)
 
 
 @dataclass
@@ -254,7 +256,8 @@ class ScenarioEngine:
 
         return SpurtResult(index=spurt_exp.index, talker_mdn=spurt_exp.talker_mdn,
                            rtp_port=port, ssrc=ssrc, sent_packets=len(packets),
-                           dropped=len(dropped), stats=stats, frames=sent_frames)
+                           dropped=len(dropped), stats=stats, frames=sent_frames,
+                           packets=packets)
 
     async def _send_sip(self, msg, session_id: str, call_id: str, peer: str) -> None:
         ev = sip_flow_event(msg, session_id=session_id, direction="SIM->SUT",

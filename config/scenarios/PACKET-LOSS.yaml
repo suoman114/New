@@ -1,0 +1,36 @@
+# 시나리오: 패킷 손실 + 지터 (timestamp-gap 묵음 채움 검증)
+# 근거: 설계서 부록2(timestamp 증가분으로 손실 산출) + 부록5, observed-from-logs §5(droppedPackets)
+id: PACKET-LOSS
+title: "MCPTT 그룹콜, RTP 패킷 손실/지터 → 묵음 채움 검증"
+service_type: MCPTT
+mcptt:
+  group_id: "98152020001"
+  group_display_name: "2호선-시험그룹"
+  members:
+    - mdn: "tel:+82585102802"
+media:
+  codec: AMR-WB
+  clock: 16000
+  octet_align: true
+  mode_set: [8]
+  source_audio: "audio/sample_16k.wav"
+floor_sequence:
+  - talker: "tel:+82585102802"
+    duration_sec: 4
+impair:
+  packet_loss_pct: 20        # seq 결손 → 수신측 ts gap → 서버는 묵음 패킷으로 채움
+  jitter_ms: 10
+  inject_silence: false
+expect:
+  rmq:
+    change_sequence: [TAKEN, IDLE]
+    reason_code: 2000
+  file:
+    prefix: "M"
+    ext: "awb"
+  stats:
+    # VCMM "Recording statistics" 의 droppedPackets 와 송출 손실수 대조
+    check: [first_seq, last_seq, total_packets, dropped_packets]
+  audio:
+    # 골든은 timestamp-gap 묵음 채움(reconstruct_from_packets)으로 재구성
+    gap_fill: true
