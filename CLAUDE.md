@@ -333,4 +333,6 @@ cd frontend && npm install && npm run dev
 - [x] 대규모 분산 부하: 멀티프로세스 분산 생성기(DistributedLoadGenerator) + 이벤트 폭주 방지(임계 초과 시 bus=None) (`backend/sim/perf/distributed.py`)
       — 105건 통과. 500세션/8워커 611ms·819sps 스모크. /api/perf workers, 대시보드 워커수 입력
 - [x] H.264 영상 검증: RTP de-pkt(Single/STAP-A/FU-A)+DON/AbsDON(RFC6184)+Annex B 재구성+NAL diff (`backend/sim/rtp/h264.py`, `backend/sim/validator/video_check.py`)
-      — 117건 통과. IMS-VIDEO 시나리오. 영상 트래픽 생성 엔진은 확장 지점
+      — IMS-VIDEO 시나리오. 영상 트래픽 생성 엔진 구현(`h264_stream.py`, `_run_ims_video`, video 골든 검증)
+- [x] H.264 영상 송출 엔진: NAL→RTP(FU-A/Single) 스트림 + IMS-VIDEO 타임라인 + video 골든 PASS/FAIL (`backend/sim/rtp/h264_stream.py`)
+      — 122건 통과. IMS-VIDEO 데모 동작(125 NAL→125 pkt). 실 음원/영상 인코딩(opencore-amr/ffmpeg)·pcap_mirror 만 확장 지점

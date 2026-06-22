@@ -41,6 +41,7 @@ class TalkSpurtExpectation(BaseModel):
     file_prefix: str = "M"
     audio_ext: str = "awb"
     name_regex: str = ""             # 실제 파일명 매칭용 정규식
+    media_kind: str = "audio"        # audio | video (검증 comparator 선택)
 
 
 class ScenarioExpectations(BaseModel):
@@ -89,7 +90,10 @@ def _build_mcptt(exp: ScenarioExpectations, scenario: Scenario) -> None:
 
 
 def _build_ims(exp: ScenarioExpectations, scenario: Scenario) -> None:
-    """IMS: caller/callee 양 레그를 각각 파일로 녹취 (observed-from-logs.md §2.2)."""
+    """IMS: 음성=caller/callee 분리 녹취, 영상(H264)=단일 .h264 (부록8·9)."""
+    if scenario.media.codec.upper() == "H264":
+        _build_ims_video(exp, scenario)
+        return
     call = scenario.call
     from_no = call.from_no if call else ""
     to_no = call.to_no if call else ""
@@ -108,5 +112,20 @@ def _build_ims(exp: ScenarioExpectations, scenario: Scenario) -> None:
             file_prefix="I", audio_ext=ext, name_regex=name_regex,
         ))
     # IMS 는 floor 변화 없음. 1 호 = 1 DB 행(CALLER/CALLEE_FILE_NAME 동시 보유) 가정.
+    exp.rmq_change_sequence = []
+    exp.db_min_rows = 1
+
+
+def _build_ims_video(exp: ScenarioExpectations, scenario: Scenario) -> None:
+    """IMS 영상(H.264): 단일 .h264 파일. 파일명 I_{callid}_{from}_{to}_{ts}.h264."""
+    call = scenario.call
+    f_local = mdn_local(call.from_no if call else "")
+    t_local = mdn_local(call.to_no if call else "")
+    fc = _frame_count(scenario.media.duration_sec)
+    name_regex = rf"^I_.+_{re.escape(f_local)}_{re.escape(t_local)}_\d{{14}}\.h264$"
+    exp.talk_spurts.append(TalkSpurtExpectation(
+        index=0, talker_mdn=call.from_no if call else "", talker_digits=f_local,
+        group_id=None, duration_ms=fc * 20, frame_count=fc, expect_empty=False,
+        file_prefix="I", audio_ext="h264", name_regex=name_regex, media_kind="video"))
     exp.rmq_change_sequence = []
     exp.db_min_rows = 1

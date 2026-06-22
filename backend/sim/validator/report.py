@@ -15,6 +15,7 @@ from .audio_check import compare_awb
 from .db_check import check_db
 from .file_check import check_files
 from .reconstruct import reconstruct_awb, reconstruct_from_packets
+from .video_check import compare_h264, reconstruct_annexb
 
 
 class Validator:
@@ -46,7 +47,7 @@ class Validator:
             for item in check_db(exp, self._repo):
                 result.add(item)
 
-        # 오디오 골든 비교 (송출 → 골든 .awb vs 서버 파일)
+        # 미디어 골든 비교 (송출 → 골든 vs 서버 파일). audio=.awb, video=.h264
         exp_by_index = {s.index: s for s in exp.talk_spurts}
         for sr in spurts:
             golden = self._golden_for(sr)
@@ -55,14 +56,20 @@ class Validator:
             spurt_exp = exp_by_index.get(getattr(sr, "index", -1))
             actual = self._server_file_bytes(spurt_exp)
             if actual is not None:
-                item = compare_awb(golden, actual, name=f"audio[{sr.index}]")
+                if getattr(sr, "media_kind", "audio") == "video":
+                    item = compare_h264(golden, actual, name=f"video[{sr.index}]")
+                else:
+                    item = compare_awb(golden, actual, name=f"audio[{sr.index}]")
                 result.add(item)
 
         await self._emit(result)
         return result
 
     def _golden_for(self, spurt) -> Optional[bytes]:
-        """spurt 의 골든 .awb. 패킷(timestamp)이 있으면 손실/묵음 채움 재구성을 우선."""
+        """spurt 의 골든 미디어. video=Annex B, audio=패킷(gap-fill)/frame 재구성."""
+        if getattr(spurt, "media_kind", "audio") == "video":
+            payloads = getattr(spurt, "video_payloads", None)
+            return reconstruct_annexb(payloads) if payloads else None
         oa = getattr(spurt, "octet_align", True)
         packets = getattr(spurt, "packets", None)
         if packets:

@@ -18,14 +18,15 @@ from .amrwb import (
 )
 from .rtp import RtpPacket
 from .sender import AmrWbStream, StreamStats
+from .h264_stream import H264Stream
 from . import encoder as encoder
 from . import impair as impair
 
 __all__ = [
     "AmrFrame", "AMRWB_SPEECH_BITS", "amrwb_frame_bytes",
     "packetize", "packetize_oa", "packetize_be", "parse", "parse_oa", "parse_be",
-    "toc_byte", "RtpPacket", "AmrWbStream", "StreamStats", "encoder", "impair",
-    "rtp_stat_event",
+    "toc_byte", "RtpPacket", "AmrWbStream", "StreamStats", "H264Stream",
+    "encoder", "impair", "rtp_stat_event",
 ]
 
 

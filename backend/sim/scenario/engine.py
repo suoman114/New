@@ -20,6 +20,8 @@ from ..platform.logging import log_for
 from ..platform.models import FlowEvent
 from ..rtp import AmrWbStream, encoder, impair, rtp_stat_event
 from ..rtp.amrwb import AmrFrame, parse
+from ..rtp.h264 import synthetic_nals
+from ..rtp.h264_stream import H264Stream
 from ..rtp.sender import StreamStats
 from ..sip import amrwb_offer, build_sdp, sip_flow_event
 from ..sip.ua import CallerUA
@@ -54,6 +56,8 @@ class SpurtResult:
     # 실제 송신된 RTP 패킷(seq/timestamp 보유) — timestamp-gap 묵음 채움 재구성용
     packets: list = field(default_factory=list)
     octet_align: bool = True             # 페이로드 모드(OA/BE) — validator 파서 선택
+    media_kind: str = "audio"            # audio | video
+    video_payloads: list = field(default_factory=list)  # H.264 RTP payloads(검증 입력)
 
 
 @dataclass
@@ -102,6 +106,8 @@ class ScenarioEngine:
         if scenario.service_type == "MCPTT":
             return await self._run_mcptt(scenario, session_id)
         if scenario.service_type == "IMS":
+            if scenario.media.codec.upper() == "H264":
+                return await self._run_ims_video(scenario, session_id)
             return await self._run_ims(scenario, session_id)
         raise NotImplementedError(f"service_type={scenario.service_type} 미구현")
 
@@ -207,6 +213,78 @@ class ScenarioEngine:
             session_id=session_id, call_id=call_id, channel="SYS", direction="SIM-INTERNAL",
             peer="scenario", label="scenario done",
             summary=f"legs={len(result.spurts)} sip={result.sip_count}"))
+        result.events = self._event_count
+        return result
+
+    # ── IMS 영상(H.264) 타임라인 ──────────────────────────────────────────────
+    async def _run_ims_video(self, scenario: Scenario, session_id: str) -> RunResult:
+        call_id = _ims_call_id()
+        exp = build_expectations(scenario, session_id=session_id, call_id=call_id)
+        result = RunResult(session_id=session_id, call_id=call_id, scenario_id=scenario.id,
+                           service_type="IMS", expectations=exp)
+        call = scenario.call
+        from_no = call.from_no if call else ""
+        to_no = call.to_no if call else ""
+
+        await self._emit(FlowEvent(
+            session_id=session_id, call_id=call_id, channel="SYS", direction="SIM-INTERNAL",
+            peer="scenario", label="scenario start",
+            summary=f"{scenario.id} H.264 {from_no}→{to_no}"),
+            log=f"start IMS video {scenario.id}")
+
+        ua = CallerUA(from_uri=f"<sip:{from_no}@{IMS_DOMAIN}>",
+                      to_uri=f"<tel:{to_no};phone-context={IMS_DOMAIN}>",
+                      via_host="104.250.1.60", via_port=5060, call_id=call_id)
+        await self._send_sip(ua.invite(sdp="v=0\r\nm=video 30000 RTP/AVP 96\r\n"
+                                       "a=rtpmap:96 H264/90000\r\n"), session_id, call_id, "VCSM")
+        await self._send_sip(ua.ack(), session_id, call_id, "VCSM")
+        result.sip_count += 2
+
+        await self._emit(FlowEvent(
+            session_id=session_id, call_id=call_id, channel="RMQ", direction="SUT-INTERNAL",
+            peer="VCSM", label="recording_start_req",
+            summary="H.264 영상 녹취 시작",
+            payload={"type": "recording_start_req", "service_type": "IMS",
+                     "video_extension": "h264"}), log="recording_start_req (video)")
+
+        # NAL 생성 → RTP 패킷화(FU-A/Single) → 송출
+        fps = scenario.media.clock and 25 or 25
+        n_nals = max(1, int(scenario.media.duration_sec * fps))
+        nals = synthetic_nals(n_nals, size=120)
+        port = self._ports.allocate()
+        ssrc = random.getrandbits(32)
+        stream = H264Stream(ssrc=ssrc, payload_type=scenario.media.pt or 96, fps=fps,
+                            mode=getattr(scenario.media, "packetization_mode", 1) or 1,
+                            mtu=200)
+        packets, payloads = stream.build(nals)
+        for pkt in packets:
+            await self._feeder.send_rtp(pkt, port, session_id=session_id, call_id=call_id)
+            if self._realtime:
+                await asyncio.sleep((1.0 / fps) * self._time_scale)
+        self._ports.release(port)
+
+        await self._emit(FlowEvent(
+            session_id=session_id, call_id=call_id, channel="RTP", direction="SIM->SUT",
+            peer="VCMM_0", label="H264 stream",
+            summary=f"nals={len(nals)} pkts={len(packets)} ssrc={ssrc} port={port}",
+            payload={"nals": len(nals), "packets": len(packets), "ssrc": ssrc}),
+            log=f"sent {len(packets)} H264 RTP pkts ({len(nals)} NAL)")
+
+        result.spurts.append(SpurtResult(
+            index=0, talker_mdn=from_no, rtp_port=port, ssrc=ssrc,
+            sent_packets=len(packets), dropped=0, stats=StreamStats(ssrc=ssrc),
+            media_kind="video", video_payloads=payloads, packets=packets))
+
+        await self._emit(FlowEvent(
+            session_id=session_id, call_id=call_id, channel="RMQ", direction="SUT-INTERNAL",
+            peer="VCSM", label="recording_stop_req", summary="영상 녹취 종료",
+            payload={"type": "recording_stop_req"}))
+        await self._send_sip(ua.bye(), session_id, call_id, "VCSM")
+        result.sip_count += 1
+        await self._emit(FlowEvent(
+            session_id=session_id, call_id=call_id, channel="SYS", direction="SIM-INTERNAL",
+            peer="scenario", label="scenario done",
+            summary=f"video nals={len(nals)} sip={result.sip_count}"))
         result.events = self._event_count
         return result
 
