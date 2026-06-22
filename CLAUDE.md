@@ -321,6 +321,7 @@ cd frontend && npm install && npm run dev
       — 53건 통과. SID/NO_DATA→묵음, 손실 timestamp-gap 채움은 v2 확장
 - [x] rmq-monitor: RMQ 디코드/헤더검증/floor 시퀀스·txn 페어링·에러코드, shadow monitor graceful degrade (`backend/sim/rmq/`)
       — 63건 통과. 실 로그 메시지(heartbeat_indi/recording_change TAKEN·IDLE/3001 에러) 기준
-- [ ] dashboard-backend: REST + WebSocket + 로그 드릴다운 API
+- [x] dashboard-backend: FastAPI REST(시나리오/이벤트/세션/결과/메트릭) + /ws/flow WebSocket + 로그 드릴다운 (`backend/api/`)
+      — 71건 통과. EventBus 중계, run/stop 오케스트레이션, TestClient 검증
 - [ ] dashboard-frontend: ladder + 제어 + 로그 + 결과
 - [ ] perf: 부하 생성/메트릭 (확장)
