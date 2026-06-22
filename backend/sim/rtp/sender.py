@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from .amrwb import AmrFrame, SAMPLES_PER_FRAME_WB, SID_FT_WB, packetize_oa
+from .amrwb import AmrFrame, SAMPLES_PER_FRAME_WB, SID_FT_WB, packetize
 from .rtp import RtpPacket
 
 
@@ -34,6 +34,7 @@ class AmrWbStream:
     start_seq: int = 0
     start_ts: int = 0
     samples_per_frame: int = SAMPLES_PER_FRAME_WB
+    octet_align: bool = True              # SDP nego: octet-align=1 → OA, 없으면 BE
     _frames: list[AmrFrame] = field(default_factory=list)
 
     def build(self, frames: list[AmrFrame]) -> list[RtpPacket]:
@@ -43,7 +44,7 @@ class AmrWbStream:
         seq = self.start_seq
         ts = self.start_ts
         for i, fr in enumerate(frames):
-            payload = packetize_oa([fr])
+            payload = packetize([fr], octet_align=self.octet_align)
             packets.append(RtpPacket(
                 payload_type=self.payload_type,
                 sequence=seq & 0xFFFF,

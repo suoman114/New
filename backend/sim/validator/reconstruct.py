@@ -12,7 +12,7 @@
 
 from __future__ import annotations
 
-from ..rtp.amrwb import AmrFrame, SID_FT_WB, amrwb_frame_bytes, parse_oa
+from ..rtp.amrwb import AmrFrame, SID_FT_WB, amrwb_frame_bytes, parse
 from .silence_tables import write_mute
 
 MAGIC_AMRWB = b"#!AMR-WB\n"
@@ -46,7 +46,8 @@ def reconstruct_awb(frames: list[AmrFrame], *, mode_set_max: int = 8,
 
 
 def reconstruct_from_packets(packets, *, mode_set_max: int = 8, wb: bool = True,
-                             samples_per_frame: int = 320) -> bytes:
+                             samples_per_frame: int = 320,
+                             octet_align: bool = True) -> bytes:
     """수신 RTP 패킷(timestamp 보유) → 골든 .awb/.amr (부록5 완전판).
 
     서버 동작과 동일하게 **timestamp 증가분으로 손실/묵음 구간을 묵음 패킷으로 채운다**:
@@ -63,7 +64,7 @@ def reconstruct_from_packets(packets, *, mode_set_max: int = 8, wb: bool = True,
             gap = (now_ts - old_ts) // samples_per_frame
             if gap > 1:
                 out += write_mute(gap - 1, wb=wb, mode=mode_set_max)
-        for fr in parse_oa(pkt.payload):
+        for fr in parse(pkt.payload, octet_align=octet_align):
             if fr.ft <= 8:
                 out += storage_record(fr)
             else:

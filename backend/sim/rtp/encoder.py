@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import hashlib
 
-from .amrwb import AmrFrame, NO_DATA_WB, SID_FT_WB, amrwb_frame_bytes
+from .amrwb import AMRWB_SPEECH_BITS, AmrFrame, NO_DATA_WB, SID_FT_WB, amrwb_frame_bytes
 
 
 def _det_bytes(n: int, seed: int, idx: int) -> bytes:
@@ -23,16 +23,29 @@ def _det_bytes(n: int, seed: int, idx: int) -> bytes:
     return bytes(out[:n])
 
 
+def _zero_pad_tail(data: bytes, nbits: int) -> bytes:
+    """speech bits(nbits) 이후 trailing padding bit 를 0 으로 (OA/BE 동치 보장)."""
+    pad = len(data) * 8 - nbits
+    if pad <= 0:
+        return data
+    buf = bytearray(data)
+    buf[-1] &= (0xFF << pad) & 0xFF
+    return bytes(buf)
+
+
 def speech_frames(count: int, *, ft: int = 8, seed: int = 1) -> list[AmrFrame]:
-    """지정 mode(ft)의 speech frame 을 count 개 생성(결정론적)."""
+    """지정 mode(ft)의 speech frame 을 count 개 생성(결정론적, padding bit=0)."""
     n = amrwb_frame_bytes(ft)
-    return [AmrFrame(ft=ft, data=_det_bytes(n, seed, i)) for i in range(count)]
+    return [AmrFrame(ft=ft, data=_zero_pad_tail(_det_bytes(n, seed, i), AMRWB_SPEECH_BITS[ft]))
+            for i in range(count)]
 
 
 def sid_frames(count: int = 1, *, seed: int = 2) -> list[AmrFrame]:
     """SID(comfort noise) frame."""
     n = amrwb_frame_bytes(SID_FT_WB)
-    return [AmrFrame(ft=SID_FT_WB, data=_det_bytes(n, seed, i)) for i in range(count)]
+    return [AmrFrame(ft=SID_FT_WB,
+                     data=_zero_pad_tail(_det_bytes(n, seed, i), AMRWB_SPEECH_BITS[SID_FT_WB]))
+            for i in range(count)]
 
 
 def no_data_frames(count: int = 1) -> list[AmrFrame]:
@@ -44,3 +57,29 @@ def talk_spurt(duration_ms: int, *, ft: int = 8, seed: int = 1) -> list[AmrFrame
     """주어진 길이(ms)의 발언(talk spurt) frame 시퀀스 (20ms 단위)."""
     count = max(0, duration_ms // 20)
     return speech_frames(count, ft=ft, seed=seed)
+
+
+# ── 실 음원 인코딩 확장 지점 (2차) ────────────────────────────────────────────
+# 결정론적 합성 frame 대신 실제 WAV/PCM 을 AMR-WB 로 인코딩하려면 아래를 구현한다.
+# opencore-amr(파이썬 바인딩) 또는 ffmpeg 서브프로세스를 연동한다(네이티브 의존).
+def external_encoder_available() -> bool:
+    """실 음원 AMR-WB 인코더(opencore-amr/ffmpeg) 가용 여부."""
+    import shutil
+
+    try:
+        import importlib.util
+        if importlib.util.find_spec("opencore_amr") is not None:
+            return True
+    except Exception:  # noqa: BLE001
+        pass
+    return shutil.which("ffmpeg") is not None
+
+
+def encode_source(source_audio: str | None, duration_ms: int, *, ft: int = 8,
+                  seed: int = 1) -> list[AmrFrame]:
+    """음원 → AMR-WB frame. 실 인코더 미가용/미지정 시 결정론적 합성으로 폴백.
+
+    실 인코더 연동 시 여기서 source_audio(WAV/PCM)를 20ms AMR-WB frame 으로 변환한다.
+    """
+    # 2차: external_encoder_available() 시 실제 인코딩 경로 구현.
+    return talk_spurt(duration_ms, ft=ft, seed=seed)

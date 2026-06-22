@@ -22,6 +22,11 @@
 - 이 field 는 실제 AMR File Storage 변환 시 **무시**되는 bit.
 - OA 모드에서 **interleaving 미지원**.
 
+> 구현: `backend/sim/rtp/amrwb.py` 에 **OA + BE 양쪽** 패킷화/파싱 구현.
+> OA: `[CMR byte][ToC byte…][speech bytes…]`. BE: `CMR(4) + ToC(6×n) + speech bits` 연속 bitstream(끝 0 padding).
+> `packetize(frames, octet_align=...)` / `parse(payload, octet_align=...)` 로 SDP nego(octet-align 유무) 반영.
+> **파일 storage 포맷은 모드 무관 동일**하므로 BE/OA 골든 재구성 결과가 일치한다.
+
 ### 2.2 ToC (table of contents)
 - 하나의 RTP packet 은 1개 이상 speech frame → n개 연속 ToC bits.
 - 각 ToC: `F`(1bit) `FT`(4bit) `Q`(1bit) [BE], OA 모드는 byte 정렬.

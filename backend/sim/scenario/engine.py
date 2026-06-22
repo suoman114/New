@@ -19,7 +19,7 @@ from ..platform.eventbus import EventBus
 from ..platform.logging import log_for
 from ..platform.models import FlowEvent
 from ..rtp import AmrWbStream, encoder, impair, rtp_stat_event
-from ..rtp.amrwb import AmrFrame, parse_oa
+from ..rtp.amrwb import AmrFrame, parse
 from ..rtp.sender import StreamStats
 from ..sip import amrwb_offer, build_sdp, sip_flow_event
 from ..sip.ua import CallerUA
@@ -53,6 +53,7 @@ class SpurtResult:
     frames: list[AmrFrame] = field(default_factory=list)
     # 실제 송신된 RTP 패킷(seq/timestamp 보유) — timestamp-gap 묵음 채움 재구성용
     packets: list = field(default_factory=list)
+    octet_align: bool = True             # 페이로드 모드(OA/BE) — validator 파서 선택
 
 
 @dataclass
@@ -125,7 +126,8 @@ class ScenarioEngine:
         ua = CallerUA(from_uri=from_uri, to_uri=to_uri, via_host="111.252.2.49",
                       via_port=5080, call_id=call_id)
         offer = build_sdp(amrwb_offer("111.252.2.49", 50020, pt=scenario.media.pt,
-                                      mode_set=max(scenario.media.mode_set)))
+                                      mode_set=max(scenario.media.mode_set),
+                                      octet_align=scenario.media.octet_align))
         await self._send_sip(ua.invite(sdp=offer), session_id, call_id, "VCSM")
         await self._send_sip(ua.ack(), session_id, call_id, "VCSM")
         result.sip_count += 2
@@ -170,7 +172,8 @@ class ScenarioEngine:
                       to_uri=f"<tel:{to_no};phone-context={IMS_DOMAIN}>",
                       via_host="104.250.1.60", via_port=5060, call_id=call_id)
         offer = build_sdp(amrwb_offer("104.240.17.77", 50020, pt=scenario.media.pt,
-                                      mode_set=max(scenario.media.mode_set)))
+                                      mode_set=max(scenario.media.mode_set),
+                                      octet_align=scenario.media.octet_align))
         await self._send_sip(ua.invite(sdp=offer), session_id, call_id, "VCSM")
         await self._send_sip(ua.ack(), session_id, call_id, "VCSM")
         result.sip_count += 2
@@ -226,7 +229,8 @@ class ScenarioEngine:
             frames = impair.inject_silence(frames, every=10, run=1)
         stream = AmrWbStream(ssrc=ssrc, payload_type=scenario.media.pt,
                              start_seq=random.randint(0, 1000),
-                             start_ts=random.randint(0, 100000))
+                             start_ts=random.randint(0, 100000),
+                             octet_align=scenario.media.octet_align)
         packets = stream.build(frames)
         packets, dropped = impair.drop_random(packets, scenario.impair.packet_loss_pct,
                                               seed=spurt_exp.index)
@@ -252,12 +256,14 @@ class ScenarioEngine:
         self._ports.release(port)
 
         # 실제 송신된 패킷의 frame 복원(손실 반영) — 골든 재구성 입력
-        sent_frames = [parse_oa(p.payload)[0] for p in packets if parse_oa(p.payload)]
+        oa = scenario.media.octet_align
+        sent_frames = [parse(p.payload, octet_align=oa)[0]
+                       for p in packets if parse(p.payload, octet_align=oa)]
 
         return SpurtResult(index=spurt_exp.index, talker_mdn=spurt_exp.talker_mdn,
                            rtp_port=port, ssrc=ssrc, sent_packets=len(packets),
                            dropped=len(dropped), stats=stats, frames=sent_frames,
-                           packets=packets)
+                           packets=packets, octet_align=scenario.media.octet_align)
 
     async def _send_sip(self, msg, session_id: str, call_id: str, peer: str) -> None:
         ev = sip_flow_event(msg, session_id=session_id, direction="SIM->SUT",

@@ -96,3 +96,113 @@ def parse_oa(payload: bytes) -> list[AmrFrame]:
         idx += n
         frames.append(AmrFrame(ft=ft, data=bytes(data), q=q))
     return frames
+
+
+# ── Bandwidth-Efficient(BE) 모드: 바이트 정렬 없는 연속 bitstream ─────────────
+class _BitWriter:
+    def __init__(self) -> None:
+        self._bits: list[int] = []
+
+    def write(self, value: int, n: int) -> None:
+        for i in range(n - 1, -1, -1):
+            self._bits.append((value >> i) & 1)
+
+    def write_bits_from(self, data: bytes, nbits: int) -> None:
+        for i in range(nbits):
+            self._bits.append((data[i // 8] >> (7 - (i % 8))) & 1)
+
+    def to_bytes(self) -> bytes:
+        out = bytearray()
+        for i in range(0, len(self._bits), 8):
+            chunk = self._bits[i:i + 8]
+            chunk = chunk + [0] * (8 - len(chunk))     # 마지막 byte 0 padding
+            b = 0
+            for bit in chunk:
+                b = (b << 1) | bit
+            out.append(b)
+        return bytes(out)
+
+
+class _BitReader:
+    def __init__(self, data: bytes) -> None:
+        self._data = data
+        self._pos = 0
+        self._end = len(data) * 8
+
+    def read(self, n: int) -> int:
+        v = 0
+        for _ in range(n):
+            bit = 0
+            if self._pos < self._end:
+                bit = (self._data[self._pos // 8] >> (7 - (self._pos % 8))) & 1
+            v = (v << 1) | bit
+            self._pos += 1
+        return v
+
+    def read_bytes(self, nbits: int) -> bytes:
+        bits = [self.read(1) for _ in range(nbits)]
+        out = bytearray()
+        for i in range(0, len(bits), 8):
+            chunk = bits[i:i + 8]
+            chunk = chunk + [0] * (8 - len(chunk))
+            b = 0
+            for bit in chunk:
+                b = (b << 1) | bit
+            out.append(b)
+        return bytes(out)
+
+
+def packetize_be(frames: list[AmrFrame], *, cmr: int = CMR_NO_REQUEST) -> bytes:
+    """Bandwidth-Efficient payload: CMR(4) + ToC(6×n) + speech bits (연속, 끝 0 padding)."""
+    w = _BitWriter()
+    w.write(cmr & 0x0F, 4)
+    if not frames:
+        return w.to_bytes()
+    for i, fr in enumerate(frames):
+        f = 0 if i == len(frames) - 1 else 1
+        w.write(f, 1)
+        w.write(fr.ft & 0x0F, 4)
+        w.write(fr.q & 1, 1)
+    for fr in frames:
+        if fr.is_speech or fr.is_sid:
+            nbits = AMRWB_SPEECH_BITS[fr.ft]
+            need = amrwb_frame_bytes(fr.ft)
+            data = fr.data[:need].ljust(need, b"\x00")
+            w.write_bits_from(data, nbits)
+    return w.to_bytes()
+
+
+def parse_be(payload: bytes) -> list[AmrFrame]:
+    """BE payload → frame 리스트."""
+    if not payload:
+        return []
+    r = _BitReader(payload)
+    r.read(4)                                          # CMR skip
+    tocs: list[tuple[int, int]] = []
+    while True:
+        f = r.read(1)
+        ft = r.read(4)
+        q = r.read(1)
+        tocs.append((ft, q))
+        if f == 0:
+            break
+        if r._pos >= r._end:                           # 방어적 종료
+            break
+    frames: list[AmrFrame] = []
+    for ft, q in tocs:
+        if ft <= 8 or ft == SID_FT_WB:
+            data = r.read_bytes(AMRWB_SPEECH_BITS[ft])
+            frames.append(AmrFrame(ft=ft, data=data, q=q))
+        else:
+            frames.append(AmrFrame(ft=ft, data=b"", q=q))
+    return frames
+
+
+def packetize(frames: list[AmrFrame], *, octet_align: bool = True,
+              cmr: int = CMR_NO_REQUEST) -> bytes:
+    """octet_align 에 따라 OA/BE payload 생성."""
+    return packetize_oa(frames, cmr=cmr) if octet_align else packetize_be(frames, cmr=cmr)
+
+
+def parse(payload: bytes, *, octet_align: bool = True) -> list[AmrFrame]:
+    return parse_oa(payload) if octet_align else parse_be(payload)

@@ -8,7 +8,11 @@ from .amrwb import (
     AmrFrame,
     AMRWB_SPEECH_BITS,
     amrwb_frame_bytes,
+    packetize,
+    packetize_be,
     packetize_oa,
+    parse,
+    parse_be,
     parse_oa,
     toc_byte,
 )
@@ -18,7 +22,8 @@ from . import encoder as encoder
 from . import impair as impair
 
 __all__ = [
-    "AmrFrame", "AMRWB_SPEECH_BITS", "amrwb_frame_bytes", "packetize_oa", "parse_oa",
+    "AmrFrame", "AMRWB_SPEECH_BITS", "amrwb_frame_bytes",
+    "packetize", "packetize_oa", "packetize_be", "parse", "parse_oa", "parse_be",
     "toc_byte", "RtpPacket", "AmrWbStream", "StreamStats", "encoder", "impair",
     "rtp_stat_event",
 ]

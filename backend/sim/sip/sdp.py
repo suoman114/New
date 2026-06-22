@@ -162,11 +162,14 @@ def build_sdp(sdp: Sdp) -> str:
 
 
 def amrwb_offer(ip: str, port: int, *, pt: int = 98, mode_set: int = 8,
-                direction: str = "sendrecv") -> Sdp:
-    """AMR-WB 단일 코덱 오퍼 SDP (테스트/시나리오 기본)."""
+                direction: str = "sendrecv", octet_align: bool = True) -> Sdp:
+    """AMR-WB 단일 코덱 오퍼 SDP. octet_align=False 면 BE 모드(octet-align 미표기)."""
     media = SdpMedia(media="audio", port=port, proto="RTP/AVP", fmts=[str(pt)],
                      direction=direction, ptime=20, maxptime=240)
     media.rtpmaps[pt] = RtpMap(pt=pt, name="AMR-WB", clock=16000, channels=1)
-    media.fmtp[pt] = {"octet-align": "1", "mode-set": str(mode_set)}
+    fmtp = {"mode-set": str(mode_set)}
+    if octet_align:
+        fmtp["octet-align"] = "1"
+    media.fmtp[pt] = fmtp
     return Sdp(ip=ip, origin=f"- 12 1000 IN IP4 {ip}", session_name="QC VOIP",
                medias=[media])

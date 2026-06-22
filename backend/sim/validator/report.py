@@ -63,9 +63,10 @@ class Validator:
 
     def _golden_for(self, spurt) -> Optional[bytes]:
         """spurt 의 골든 .awb. 패킷(timestamp)이 있으면 손실/묵음 채움 재구성을 우선."""
+        oa = getattr(spurt, "octet_align", True)
         packets = getattr(spurt, "packets", None)
         if packets:
-            return reconstruct_from_packets(packets, mode_set_max=self._mode)
+            return reconstruct_from_packets(packets, mode_set_max=self._mode, octet_align=oa)
         frames = getattr(spurt, "frames", None)
         if frames:
             return reconstruct_awb(frames, mode_set_max=self._mode)

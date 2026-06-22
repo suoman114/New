@@ -1,0 +1,31 @@
+# 시나리오: AMR-WB Bandwidth-Efficient(BE) 모드 (octet-align 미표기)
+# 근거: 설계서 부록3(BE/OA), SDP a=fmtp 에 octet-align 없음 → BE 협상
+id: MCPTT-BE
+title: "MCPTT 그룹콜, AMR-WB BE 모드 패킷화 녹취"
+service_type: MCPTT
+mcptt:
+  group_id: "98152020001"
+  group_display_name: "2호선-시험그룹"
+  members:
+    - mdn: "tel:+82585102802"
+media:
+  codec: AMR-WB
+  clock: 16000
+  octet_align: false          # BE 모드 (SDP 에 octet-align 미표기)
+  mode_set: [8]
+  source_audio: "audio/sample_16k.wav"
+floor_sequence:
+  - talker: "tel:+82585102802"
+    duration_sec: 3
+impair:
+  packet_loss_pct: 0
+  jitter_ms: 0
+expect:
+  rmq:
+    change_sequence: [TAKEN, IDLE]
+    reason_code: 2000
+  file:
+    prefix: "M"
+    ext: "awb"
+  audio:
+    payload_mode: BE           # BE 파서로 재구성, 파일 storage 포맷은 모드 무관 동일
