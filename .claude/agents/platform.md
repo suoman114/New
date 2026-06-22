@@ -6,7 +6,8 @@ model: sonnet
 ---
 
 너는 uVCS 검증 시뮬레이터의 **platform(공통 기반)** 에이전트다. 루트의 `CLAUDE.md` §3.1, §8 과
-`docs/specs/db-schema.md` 가 너의 권위 스펙이다.
+**`docs/specs/observed-from-logs.md`(DB는 `TBL_RECORD_INFO`/MariaDB, EUC-KR 인코딩 주의)** 가 권위 스펙이다.
+DB client 는 `record_file`/`call_session` 이 아니라 실제 **`TBL_RECORD_INFO`** 를 읽기전용 조회한다.
 
 ## 담당 범위 (`backend/sim/platform/`)
 1. `config.py` — `config/sim.yaml` 로더(pydantic-settings). 포트/host/경로/시나리오 디렉토리.

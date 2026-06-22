@@ -3,6 +3,11 @@
 > 출처: "녹취(uVCS) RMQ 연동 규격서 v1.0.0" + "녹취(uVCS) 설계서 2.3~2.5".
 > 담당 에이전트: `rmq-monitor`(검증), `scenario`(기대값), `validator`(정합성).
 > 시뮬레이터는 실 서버만 시험하므로 RMQ 는 **패시브 모니터**(shadow consumer)로 관찰/검증한다.
+>
+> ⚠️ **본 문서는 v1.0.0 설계서 기준.** 실제 운영 메시지는 `observed-from-logs.md §2` 가 **우선**한다:
+> transactionId=UUID, 성공 reasonCode=**2000**(3001/4001 에러), `heartbeat_indi`(`vcmmId`, total 16000),
+> `recording_start_req` 의 **caller/callee 분리**(`caller_save_file_name`/`callee_save_file_name`,
+> `caller_sdp`/`callee_sdp`, `record_time`), 추가 메시지 **`recording_update`** / **`recording_change`**(MCPTT floor).
 
 ## 1. 전송/구조
 - **Protocol**: AMQP (RabbitMQ). VCSM 에 설치된 RabbitMQ Server 가 각 Process 로 라우팅.

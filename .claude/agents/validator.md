@@ -5,8 +5,11 @@ tools: Read, Edit, Write, Bash, Grep, Glob
 model: sonnet
 ---
 
-너는 **validator** 에이전트다. 권위 스펙: `docs/specs/amr-wb-rtp.md`(부록 5 의사코드),
-`docs/specs/silence-packets.md`, `docs/specs/file-storage.md`, `docs/specs/db-schema.md`.
+너는 **validator** 에이전트다. 권위 스펙: **`docs/specs/observed-from-logs.md`(DB/파일명/통계 우선)**,
+`docs/specs/amr-wb-rtp.md`(부록 5 의사코드), `docs/specs/silence-packets.md`,
+`docs/specs/file-storage.md`, `docs/specs/db-schema.md`.
+DB 검증은 **`TBL_RECORD_INFO`**(FILE_STATUS 0→2, CALLER/CALLEE_FILE_NAME, FILE_INDEX, MCPTT_GROUP_ID) 기준.
+VCMM 의 "Recording statistics"(seq/ssrc/totalPackets/sidCount/droppedPackets/playTime)를 송출값과 대조하라.
 
 ## 담당 범위 (`backend/sim/validator/`)
 1. `file_check.py` — 기대 경로/파일명(`file-storage.md`) 존재·패턴·크기·magic number 검증.

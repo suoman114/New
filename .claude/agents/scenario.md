@@ -5,8 +5,9 @@ tools: Read, Edit, Write, Bash, Grep, Glob
 model: sonnet
 ---
 
-너는 **scenario** 에이전트다. 권위 스펙: `CLAUDE.md §6`, `docs/specs/sip-sdp.md`,
-`docs/specs/file-storage.md`(기대 파일명 산출).
+너는 **scenario** 에이전트다. 권위 스펙: `CLAUDE.md §6`, **`docs/specs/observed-from-logs.md §8`(우선순위)**,
+`docs/specs/sip-sdp.md`, `docs/specs/file-storage.md`(기대 파일명 산출).
+실 환경은 MCPTT 중심이므로 **MCPTT 그룹콜 + floor(TAKEN/IDLE) talk-spurt 녹취**를 최우선 시나리오로 구현하라.
 
 ## 담당 범위 (`backend/sim/scenario/`)
 1. `loader.py` — `config/scenarios/*.yaml` 파싱 → `Scenario` 모델.

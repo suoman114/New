@@ -9,17 +9,24 @@ tapper:
   rtp_port_base: 10001         # VCTP RTP 수신 포트 시작
   rtp_port_count: 1000         # 10001 ~ 11000
 
-# 시험 대상(SUT) 산출물 접근 (읽기 전용)
+# 시험 대상(SUT) 산출물 접근 (읽기 전용). as-built: observed-from-logs.md §3,§4
 sut:
-  rec_root: "~/REC"            # 녹취 파일 루트 (file-storage.md 디렉토리 구조)
+  rec_ramdisk: "/home/vcs/ramdisk"   # 진행중 녹취(.awb.ing) 램디스크 루트
+  rec_nas: "/home/vcs/nas"           # 완료 파일 NAS 루트 (환경에 맞게)
+  # 경로: {root}/{IMS|MCPTT}/{VOICE|VIDEO|CONV}/{YYYY}/{MM}/{DD}/{HH}/
   db:
-    driver: "mysql+pymysql"    # 실제 드라이버에 맞게 조정
+    driver: "mysql+pymysql"    # 실제는 MariaDB
     host: "127.0.0.1"
     port: 3306
     user: "readonly"
     password: ""
     database: "uvcs"
+    table: "TBL_RECORD_INFO"   # as-built 실제 테이블 (not record_file)
+    charset: "euckr"           # 로그상 한글이 EUC-KR
     readonly: true             # validator/platform.db 는 절대 쓰기 금지
+
+# 직접 주입 대상(실 VCTP 우회 시): SIP→VCSM, RTP→VCMM 포트로 직접 송신하는 모드 옵션
+inject_mode: "tapper_udp"      # tapper_udp(기본) | pcap_mirror(2차)
 
 # RMQ 패시브 모니터 (shadow consumer). 접근 불가 시 graceful degrade.
 rmq:

@@ -3,6 +3,11 @@
 > 출처: "녹취(uVCS) Database 규격서 v1.0.0".
 > 담당 에이전트: `validator`(DB 정합성 검증), `platform`(DB client).
 > 시뮬레이터는 SUT 의 DB 를 **읽기 전용**으로 조회하여 검증한다 (쓰기 금지).
+>
+> ⚠️ **실제 운영 DB 는 본 문서(`call_session`/`record_file`)가 아니라 `TBL_RECORD_INFO` 단일 테이블**
+> (MariaDB/Hibernate) 을 사용한다. 컬럼/상태전이/그룹필드는 `observed-from-logs.md §4` 가 **우선**.
+> 검증기는 `TBL_RECORD_INFO` 를 조회한다(FILE_STATUS 0→2, REASON_CORD 오타 컬럼, MCPTT_GROUP_ID 등, EUC-KR 인코딩).
+> 아래 v1.0.0 스키마는 참고용으로 보존한다.
 
 ## 1. 호 정보 — `call_session` table
 | 이름 | 타입 | PK | AI | FK | NOT NULL | 설명 |

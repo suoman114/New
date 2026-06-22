@@ -2,6 +2,12 @@
 
 > 출처: "녹취(uVCS) 설계서 2.6 (녹취 File 관리)".
 > 담당: `validator`(파일 존재/명명/경로 검증), `scenario`(기대 파일명 산출).
+>
+> ⚠️ **실제 파일명/경로는 `observed-from-logs.md §3` 가 우선**한다:
+> IMS `I_{CALLID}_{from}_{to}_{YYYYMMDDHHMMSS}.awb`(caller/callee 2개),
+> MCPTT `M_{CALLID}_{talkerMDN}_{GROUPID}_{YYYYMMDDHHMMSS}_{FILE_INDEX}.awb`(talk-spurt별),
+> 저장 루트 **`/home/vcs/ramdisk/...`** + 진행중 **`.awb.ing`** → 완료 시 NAS 이관.
+> 아래 설계서 규칙은 참고용.
 
 ## 1. 원칙
 - 녹음 파일은 **Unique** 하게 관리되어야 한다.

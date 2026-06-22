@@ -4,6 +4,11 @@
 > 항상 이 파일을 읽고, 아래 정의된 **서브 에이전트**(`.claude/agents/*.md`)에게 작업을 위임한다.
 > 모든 설계 근거는 본 문서 및 `docs/specs/*.md` 에 embed 되어 있으며, 각 에이전트는
 > 자신의 담당 영역 스펙만으로 독립 개발이 가능하도록 작성되었다.
+>
+> ⚠️ **스펙 우선순위**: 실 운영 로그 분석 결과인 **`docs/specs/observed-from-logs.md` (as-built)** 가
+> 설계서 v1.0.0 기반 스펙보다 **우선**한다. 실제 시스템은 **MCPTT 중심**으로 진화했고, 프로세스(**VCMC** 추가),
+> 메시지(`recording_change`/`recording_update`, UUID transactionId, reasonCode `2000`=성공),
+> DB 테이블(`TBL_RECORD_INFO`), 파일명/경로(램디스크 `.ing`)가 설계서와 다르다. **반드시 as-built 우선.**
 
 ---
 
@@ -51,13 +56,18 @@
   └──────────────────────────────────────────────────────────────────────┘
 ```
 
-### 1.1 프로세스 역할 (설계서 2.2)
+### 1.1 프로세스 역할 (as-built, `observed-from-logs.md` 우선)
 | 프로세스 | 역할 |
 |---|---|
-| **VCTP** | Tapper 로부터 수신한 데이터에서 UDP 만 추출 → **SIP 는 VCSM**, **RTP 는 VCMM** 으로 전달 |
-| **VCSM** | VCTP 의 SIP 메시지 파싱 → Call-ID 기반 세션맵 관리, **다중 VCMM 로드밸런싱**, RMQ 로 `recording_start/stop` 전달, 파일명 결정/DB 기록, 통계, 이중화(Active-Standby) |
-| **VCMM** | VCSM 의 `recording_start/stop` 수신 → RTP 수신하여 **AMR/AMR-WB/H264 파일로 저장** (id `0~5`, 최대 6개) |
-| **RabbitMQ** | VCSM ↔ VCMM 간 JSON 제어 메시지 미들웨어(AMQP) |
+| **VCTP** | NIC **libpcap 미러 캡처** + IP fragment 재조립 → **SIP 는 VCSM**, **RTP 는 VCMM** 으로 전달 (SIP 5060=IMS, 5080=MCPTT) |
+| **VCSM** | (IMS 브레인) SIP 파싱 → Call-ID 세션맵, 다중 VCMM 로드밸런싱, RMQ `recording_start/update/stop` 전달, `TBL_RECORD_INFO` 기록, 통계, 이중화 |
+| **VCMM** (`VCMM_0`) | RTP 수신 → **AMR-WB `.awb` 파일 저장**(램디스크). MCPTT **floor 처리**, `heartbeat_indi` 송신, floor 변화를 `recording_change`로 VCMC 통지 |
+| **VCMC** | (MCPTT 브레인, **설계서엔 없던 실제 프로세스**) MCPTT 녹취 클라이언트 SIP REGISTER(OWN/HEALTH), `recording_change` 처리, `TBL_RECORD_INFO` INSERT/UPDATE, 완료 처리 |
+| **RabbitMQ** | VCSM/VCMC ↔ VCMM 간 JSON 제어 메시지 미들웨어(AMQP) |
+
+- **IMS 경로**: VCTP→VCSM(SIP), VCSM⇄VCMM(`recording_start/update/stop`), VCSM→DB.
+- **MCPTT 경로**: VCMC(REGISTER 가입), VCMM⇄VCMC(`recording_change` floor TAKEN/IDLE), VCMC→DB.
+  MCPTT 는 **floor(talk spurt) 단위로 파일 1개**씩 생성(FILE_INDEX 증가). ← **실 트래픽 대다수**.
 
 ### 1.2 연동 포트 (설계서 2.7 / 2.8)
 - **VCTP → VCSM (SIP)**: IP `127.0.0.1`, Port `10000` (UDP, Config)
@@ -148,13 +158,13 @@ class FlowEvent:
 ### 4.1 에이전트 카탈로그 (`.claude/agents/`)
 | 에이전트 | 파일 | 담당 | 주 스펙 |
 |---|---|---|---|
-| **platform** | `platform.md` | config, logging, EventBus, 공통 models, DB client | §3.1, DB 규격 |
-| **sip-engine** | `sip-engine.md` | SIP UA/메시지/SDP, IMS·McPTT call flow | `docs/specs/sip-sdp.md` |
-| **rtp-media** | `rtp-media.md` | RTP + AMR-WB 패킷화/송출, 묵음/손실/지터 | `docs/specs/amr-wb-rtp.md` |
-| **tapper-feed** | `tapper-feed.md` | Tapper UDP 포워딩(SIP→10000, RTP→10001~11000) | §1.2 |
-| **scenario** | `scenario.md` | 시나리오 상태머신/타임라인 오케스트레이션 | §6 시나리오 |
-| **validator** | `validator.md` | 기준 녹취 + 파일/DB/오디오 비교 검증 | `docs/specs/amr-wb-rtp.md`, `db-schema.md`, `file-storage.md` |
-| **rmq-monitor** | `rmq-monitor.md` | RMQ 메시지 모니터/검증 | `docs/specs/rmq-protocol.md` |
+| **platform** | `platform.md` | config, logging, EventBus, 공통 models, DB client | §3.1, `observed-from-logs.md`(TBL_RECORD_INFO) |
+| **sip-engine** | `sip-engine.md` | SIP UA/메시지/SDP, IMS·McPTT call flow | `sip-sdp.md` + `observed-from-logs.md §6` |
+| **rtp-media** | `rtp-media.md` | RTP + AMR-WB 패킷화/송출, 묵음/손실/지터 | `amr-wb-rtp.md` |
+| **tapper-feed** | `tapper-feed.md` | Tapper UDP 포워딩(SIP→10000, RTP→10001~11000) | §1.2, `observed-from-logs.md §7` |
+| **scenario** | `scenario.md` | 시나리오 상태머신/타임라인 오케스트레이션 | §6 + `observed-from-logs.md §8`(MCPTT floor 우선) |
+| **validator** | `validator.md` | 기준 녹취 + 파일/DB/오디오 비교 검증 | `amr-wb-rtp.md`, `observed-from-logs.md`(DB/파일/통계), `file-storage.md` |
+| **rmq-monitor** | `rmq-monitor.md` | RMQ 메시지 모니터/검증 | `observed-from-logs.md §2`(우선) + `rmq-protocol.md` |
 | **dashboard-backend** | `dashboard-backend.md` | FastAPI REST + WebSocket, 이벤트 중계, 결과 API | §3.1 |
 | **dashboard-frontend** | `dashboard-frontend.md` | React/TS UI: ladder, 로그 드릴다운, 제어, 결과 | §3.1, §5 |
 | **perf** | `perf.md` | 부하 생성/메트릭, 동시 세션 확장 | §7 |
@@ -183,10 +193,14 @@ class FlowEvent:
 
 ## 6. 테스트 시나리오 카탈로그 (scenario 에이전트)
 > 각 시나리오는 `config/scenarios/*.yaml` 로 선언되고, scenario 엔진이 타임라인으로 전개한다.
+> **우선순위(실 환경 반영, `observed-from-logs.md §8`)**: 실 트래픽은 MCPTT 중심이므로
+> **MCPTT 그룹콜 + floor(TAKEN/IDLE) talk-spurt 녹취**를 최우선으로 구현한다.
 
 | ID | 설명 | 검증 포인트 |
 |---|---|---|
-| `IMS-VOICE-INBOUND` | IMS 음성 인바운드(`outbound=0`) AMR-WB | 파일 `I_..._.awb`, call_session/record_file, recording_start/stop |
+| `MCPTT-GROUP-FLOOR` | **(최우선)** MCPTT 그룹콜, floor TAKEN→RECORDING→IDLE, 다발언자 | talk-spurt별 파일 `M_..._{FILE_INDEX}.awb`, `recording_change`, TBL_RECORD_INFO, 통계(seq/ssrc/totalPackets) |
+| `MCPTT-REINVITE` | recording_update(ReINVITE SDP 변경, file_index 증가) | update_req/res, file_index |
+| `IMS-VOICE-INBOUND` | IMS 음성 인바운드(`outbound=0`) AMR-WB, **caller/callee 분리 파일** | 파일 `I_..._.awb` 2개, TBL_RECORD_INFO, recording_start/stop |
 | `IMS-VOICE-OUTBOUND` | IMS 음성 아웃바운드(`outbound=1`) | 방향/번호 정합성 |
 | `MCPTT-VOICE` | McPTT 음성, `service_type=MCPTT`, res 에 SDP 필수 | 파일 `M_..._.awb`, MCPTT 분기 |
 | `IMS-AMRNB` | AMR-NB(`.amr`) 코덱 | 코덱 분기, 확장자 |
@@ -266,6 +280,8 @@ cd frontend && npm install && npm run dev
 ## 9. 핵심 설계 스펙 요약 (상세는 `docs/specs/`)
 
 > 아래는 오케스트레이터가 빠르게 참조하는 요약이다. **권위 있는 전체 스펙은 각 `docs/specs/*.md`**.
+> ⚠️ 아래 9.1~9.5 는 설계서 v1.0.0 기준이며, **실 동작은 `docs/specs/observed-from-logs.md` 가 우선**한다
+> (메시지 타입/필드, reasonCode 2000, TBL_RECORD_INFO, caller/callee 분리, 파일명/램디스크 등).
 
 ### 9.1 RMQ 제어 메시지 (→ `docs/specs/rmq-protocol.md`)
 - 포맷: **JSON**, `header` + `body`. Protocol = AMQP, Direction = VCSM ↔ VCMM.

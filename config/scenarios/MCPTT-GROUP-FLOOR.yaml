@@ -1,0 +1,47 @@
+# 시나리오: (최우선) MCPTT 그룹콜 + floor 제어 talk-spurt 녹취
+# 근거: docs/specs/observed-from-logs.md §2.6, §3, §5, §8 (실 트래픽 대다수)
+id: MCPTT-GROUP-FLOOR
+title: "MCPTT 그룹콜 floor TAKEN/IDLE talk-spurt 녹취"
+service_type: MCPTT
+mcptt:
+  group_id: "98152020001"
+  group_display_name: "2호선-시험그룹"
+  members:                       # floor 를 번갈아 잡는 발언자들
+    - mdn: "tel:+82585102802"
+    - mdn: "tel:+82585109004"
+    - mdn: "tel:+82585102903"
+media:
+  codec: AMR-WB
+  clock: 16000
+  octet_align: true
+  mode_set: [8]
+  source_audio: "audio/sample_16k.wav"
+floor_sequence:                  # 각 항목 = 하나의 talk spurt(파일 1개, FILE_INDEX 증가)
+  - talker: "tel:+82585102802"
+    duration_sec: 4
+  - talker: "tel:+82585109004"
+    duration_sec: 6
+  - talker: "tel:+82585102903"
+    duration_sec: 0              # No packets recorded 케이스(빈 파일) 검증
+impair:
+  packet_loss_pct: 0
+  jitter_ms: 0
+expect:
+  rmq:
+    # floor 변화마다 VCMM->VCMC recording_change(TAKEN/IDLE)
+    change_sequence: [TAKEN, IDLE, TAKEN, IDLE, TAKEN, IDLE]
+    reason_code: 2000
+  file:
+    prefix: "M"
+    ext: "awb"
+    dir_media: "VOICE"
+    name_pattern: "M_{callid}_{talker_mdn}_{group_id}_{ts}_{file_index}.awb"
+    file_index_increments: true
+  db:
+    table: "TBL_RECORD_INFO"
+    rows_per_talkspurt: 1
+    FILE_STATUS_final: 2         # 0(저장중) -> 2(완료)
+    MCPTT_GROUP_ID: "98152020001"
+  stats:                         # VCMM "Recording statistics" 와 대조
+    check: [first_seq, last_seq, ssrc, total_packets, sid_count, dropped_packets, play_time_ms]
+    empty_talkspurt_expected: true   # 3번째(0초)는 "No packets recorded"
