@@ -7,6 +7,7 @@ import com.lter.infra.domain.dto.SetupRequest;
 import com.lter.infra.repository.JobHistoryRepository;
 import com.lter.infra.util.AnsibleExecutor;
 import com.lter.infra.util.InventoryGenerator;
+import com.lter.infra.util.PlaybookCatalog;
 import com.lter.infra.util.ProcessResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,15 +21,11 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -43,18 +40,16 @@ public class SetupService {
     private final SseLogService sseLogService;
     private final SystemConfigService systemConfigService;
 
-    private static final Set<Integer> OS_PREFIX_NUMS  = new HashSet<>(Arrays.asList(0,1,2,3,4,5,12,14,15,16));
-    private static final Set<Integer> PKG_PREFIX_NUMS = new HashSet<>(Arrays.asList(6,7,8,9,10,11,13));
-    private static final Pattern PREFIX_PATTERN = Pattern.compile("^(\\d+)[-_]");
+    // playbook 분류(OS/PKG)·번호 prefix·정렬 규약은 PlaybookCatalog 가 단일 출처다.
 
     /** playbook 디렉토리에서 OS 관련 파일 목록을 읽어 반환 (prefix 번호 순 정렬) */
     public List<String> listOsPlaybooks() {
-        return listPlaybooksByPrefixes(OS_PREFIX_NUMS);
+        return listPlaybooksByPrefixes(PlaybookCatalog.OS_PREFIX_NUMS);
     }
 
     /** playbook 디렉토리에서 PKG 관련 파일 목록을 읽어 반환 (prefix 번호 순 정렬) */
     public List<String> listPkgPlaybooks() {
-        return listPlaybooksByPrefixes(PKG_PREFIX_NUMS);
+        return listPlaybooksByPrefixes(PlaybookCatalog.PKG_PREFIX_NUMS);
     }
 
     private List<String> listPlaybooksByPrefixes(Set<Integer> prefixes) {
@@ -66,20 +61,11 @@ public class SetupService {
             return Collections.emptyList();
         }
         File[] files = new File(dir).listFiles(
-                (d, name) -> (name.endsWith(".yml") || name.endsWith(".yaml")) && prefixes.contains(extractPrefixNum(name)));
+                (d, name) -> (name.endsWith(".yml") || name.endsWith(".yaml"))
+                        && prefixes.contains(PlaybookCatalog.extractPrefixNum(name)));
         if (files == null) return Collections.emptyList();
-        return Arrays.stream(files)
-                .map(File::getName)
-                .sorted(Comparator.comparingInt(this::extractPrefixNum).thenComparing(Comparator.naturalOrder()))
-                .collect(Collectors.toList());
-    }
-
-    private int extractPrefixNum(String filename) {
-        Matcher m = PREFIX_PATTERN.matcher(filename);
-        if (m.find()) {
-            try { return Integer.parseInt(m.group(1)); } catch (NumberFormatException ignored) {}
-        }
-        return -1;
+        return PlaybookCatalog.filterAndSort(
+                Arrays.stream(files).map(File::getName).collect(Collectors.toList()), prefixes);
     }
 
     /** OS + PKG 통합 셋업 - 사용자가 지정한 순서 그대로 playbook 실행 */
@@ -114,8 +100,7 @@ public class SetupService {
         if (request.getDatabaseName() != null)    pkgExtra.put("database_name", request.getDatabaseName());
 
         for (String playbook : ordered) {
-            int num = extractPrefixNum(playbook);
-            JobHistory.JobType jobType = PKG_PREFIX_NUMS.contains(num)
+            JobHistory.JobType jobType = PlaybookCatalog.isPkg(playbook)
                     ? JobHistory.JobType.PKG_SETUP : JobHistory.JobType.OS_SETUP;
             Map<String, String> extra = jobType == JobHistory.JobType.PKG_SETUP ? pkgExtra : osExtra;
             runPlaybooks(servers, Collections.singletonList(playbook), jobType, extra,
@@ -128,10 +113,7 @@ public class SetupService {
 
     /** 전체 playbook 목록(OS+PKG) 반환 - prefix 번호 순 정렬 */
     public List<String> listAllPlaybooks() {
-        Set<Integer> all = new HashSet<>();
-        all.addAll(OS_PREFIX_NUMS);
-        all.addAll(PKG_PREFIX_NUMS);
-        return listPlaybooksByPrefixes(all);
+        return listPlaybooksByPrefixes(PlaybookCatalog.allPrefixNums());
     }
 
     /** 다중 서버 OS 셋업 - SSE 실시간 로그 (병렬 실행) */
