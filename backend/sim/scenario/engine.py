@@ -19,6 +19,7 @@ from ..platform.eventbus import EventBus
 from ..platform.logging import log_for
 from ..platform.models import FlowEvent
 from ..rtp import AmrWbStream, encoder, impair, rtp_stat_event
+from ..rtp.amrwb import AmrFrame, parse_oa
 from ..rtp.sender import StreamStats
 from ..sip import amrwb_offer, build_sdp, sip_flow_event
 from ..sip.ua import CallerUA
@@ -47,6 +48,8 @@ class SpurtResult:
     sent_packets: int
     dropped: int
     stats: StreamStats
+    # 실제 송신된 frame(손실 반영) — validator 골든 재구성용
+    frames: list[AmrFrame] = field(default_factory=list)
 
 
 @dataclass
@@ -177,9 +180,12 @@ class ScenarioEngine:
             payload={"type": "IDLE"}))
         self._ports.release(port)
 
+        # 실제 송신된 패킷의 frame 복원(손실 반영) — 골든 재구성 입력
+        sent_frames = [parse_oa(p.payload)[0] for p in packets if parse_oa(p.payload)]
+
         return SpurtResult(index=spurt_exp.index, talker_mdn=spurt_exp.talker_mdn,
                            rtp_port=port, ssrc=ssrc, sent_packets=len(packets),
-                           dropped=len(dropped), stats=stats)
+                           dropped=len(dropped), stats=stats, frames=sent_frames)
 
     async def _send_sip(self, msg, session_id: str, call_id: str, peer: str) -> None:
         ev = sip_flow_event(msg, session_id=session_id, direction="SIM->SUT",
