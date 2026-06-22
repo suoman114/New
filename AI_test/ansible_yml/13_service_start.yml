@@ -1,0 +1,39 @@
+- hosts: vcs
+  remote_user: root
+
+  tasks:
+   - name: vcs service start to init.d
+     copy:
+        src: "{{ playbook_dir }}/../vcs_conf/vcs"
+        dest: /etc/init.d/
+        mode: '0755'
+
+   - name: vcweb service start to init.d
+     copy:
+        src: "{{ playbook_dir }}/../vcs_conf/vcweb"
+        dest: /etc/init.d/
+        mode: '0755'
+
+   - name: vcapi service start to init.d
+     copy:
+        src: "{{ playbook_dir }}/../vcs_conf/vcapi"
+        dest: /etc/init.d/
+        mode: '0755'
+   
+   - name: chkconfig add vcs
+     shell: "chkconfig --add /etc/init.d/vcs"
+
+   - name: chkconfig run level 2 to 5
+     shell: "chkconfig --level 2345 vcs on "
+
+   - name: chkconfig add vcweb
+     shell: "chkconfig --add /etc/init.d/vcweb"
+
+   - name: chkconfig run level 2 to 5
+     shell: "chkconfig --level 2345 vcweb on "
+
+   - name: chkconfig add vcapi
+     shell: "chkconfig --add /etc/init.d/vcapi"
+
+   - name: chkconfig run level 2 to 5
+     shell: "chkconfig --level 2345 vcapi on "

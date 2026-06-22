@@ -1,0 +1,335 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>2.7.18</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>com.lter</groupId>
+    <artifactId>infra</artifactId>
+    <version>R1.0.11</version>
+    <packaging>jar</packaging>
+    <name>LTER-infra</name>
+    <description>Infra Automation Web Server for Air-gapped Environment</description>
+
+    <properties>
+        <java.version>1.8</java.version>
+        <rpm.version>R1.0.11</rpm.version>
+    </properties>
+
+    <dependencies>
+        <!-- Spring Boot Web -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- Spring Data JPA -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+
+        <!-- Validation -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+        <!-- MariaDB -->
+        <dependency>
+            <groupId>org.mariadb.jdbc</groupId>
+            <artifactId>mariadb-java-client</artifactId>
+            <version>2.7.12</version>
+        </dependency>
+
+        <!-- Lombok -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- H2 내장 DB (dev 프로파일용) -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- WebJars (폐쇄망 환경용 정적 자산 내장) -->
+        <dependency>
+            <groupId>org.webjars</groupId>
+            <artifactId>webjars-locator-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.webjars</groupId>
+            <artifactId>bootstrap</artifactId>
+            <version>5.3.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.webjars.npm</groupId>
+            <artifactId>bootstrap-icons</artifactId>
+            <version>1.11.0</version>
+        </dependency>
+
+        <!-- Apache POI (Excel 생성) -->
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml</artifactId>
+            <version>5.2.5</version>
+        </dependency>
+
+        <!-- Test -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <finalName>LTER-infra-${rpm.version}</finalName>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+
+        </plugins>
+    </build>
+
+    <profiles>
+        <profile>
+            <id>rpm</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>de.dentrassi.maven</groupId>
+                        <artifactId>rpm</artifactId>
+                        <version>1.4.0</version>
+                        <executions>
+                            <execution>
+                                <id>build-rpm</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>rpm</goal>
+                                </goals>
+                                <configuration>
+                                    <packageName>LTER-infra</packageName>
+                                    <version>${rpm.version}</version>
+                                    <release>1</release>
+                                    <summary>LTER Infra Automation Web Server</summary>
+                                    <description>Infra Automation Web Server for Air-gapped Environment</description>
+                                    <group>Applications/System</group>
+                                    <skipSigning>true</skipSigning>
+
+                                    <!-- pre-install: 사용자/디렉토리 생성 -->
+                                    <beforeInstallation>
+                                        <script>
+#!/bin/bash
+# lter 사용자/그룹 생성
+if ! getent group lter &gt;/dev/null 2&gt;&amp;1; then
+    groupadd -r lter
+fi
+if ! getent passwd lter &gt;/dev/null 2&gt;&amp;1; then
+    useradd -r -g lter -d /opt/lter -s /sbin/nologin -c "LTER Service User" lter
+fi
+
+# 필요 디렉토리 생성
+mkdir -p /opt/lter/infra/config
+mkdir -p /opt/lter/infra/ansible
+mkdir -p /opt/lter/infra/scripts
+mkdir -p /opt/lter/infra/packages
+mkdir -p /opt/lter/infra/repos
+mkdir -p /var/log/lter-infra
+                                        </script>
+                                    </beforeInstallation>
+
+                                    <!-- post-install: 권한 설정 및 서비스 등록 -->
+                                    <afterInstallation>
+                                        <script>
+#!/bin/bash
+# 소유권 설정
+chown -R lter:lter /opt/lter
+chown -R lter:lter /var/log/lter-infra
+
+# ansible 플레이북 실행 권한
+chmod +x /opt/lter/infra/scripts/*.sh 2>/dev/null || true
+
+# 현재 버전 심볼릭 링크 생성 (서비스 파일이 고정 경로 참조)
+ln -sf /opt/lter/infra/LTER-infra-${rpm.version}.jar /opt/lter/infra/lter-infra-current.jar
+
+# systemd 등록
+systemctl daemon-reload
+systemctl enable lter-infra
+
+echo "======================================"
+echo " LTER-infra 설치 완료"
+echo " 시작: systemctl start lter-infra"
+echo " 로그: journalctl -u lter-infra -f"
+echo "======================================"
+                                        </script>
+                                    </afterInstallation>
+
+                                    <!-- pre-uninstall: 서비스 중지 -->
+                                    <beforeRemoval>
+                                        <script>
+#!/bin/bash
+systemctl stop lter-infra 2>/dev/null || true
+systemctl disable lter-infra 2>/dev/null || true
+                                        </script>
+                                    </beforeRemoval>
+
+                                    <!-- post-uninstall: daemon-reload -->
+                                    <afterRemoval>
+                                        <script>
+#!/bin/bash
+systemctl daemon-reload
+                                        </script>
+                                    </afterRemoval>
+
+                                    <entries>
+                                        <!-- 애플리케이션 JAR -->
+                                        <entry>
+                                            <name>/opt/lter/infra/LTER-infra-${rpm.version}.jar</name>
+                                            <file>${project.build.directory}/LTER-infra-${rpm.version}.jar</file>
+                                        </entry>
+
+                                        <!-- 설정 파일 -->
+                                        <entry>
+                                            <name>/opt/lter/infra/config/application.yml</name>
+                                            <file>${project.basedir}/src/main/resources/application.yml</file>
+                                            <configuration>noreplace</configuration>
+                                        </entry>
+                                        <entry>
+                                            <name>/opt/lter/infra/config/application-prod.yml</name>
+                                            <file>${project.basedir}/src/main/resources/application-prod.yml</file>
+                                            <configuration>noreplace</configuration>
+                                        </entry>
+
+                                        <!-- systemd 서비스 파일 -->
+                                        <entry>
+                                            <name>/usr/lib/systemd/system/lter-infra.service</name>
+                                            <file>${project.basedir}/src/main/rpm/lter-infra.service</file>
+                                        </entry>
+
+                                        <!-- Ansible 플레이북 -->
+                                        <entry>
+                                            <name>/opt/lter/infra/ansible/0_auto_pass.yml</name>
+                                            <file>${project.basedir}/ansible_yml/0_auto_pass.yml</file>
+                                        </entry>
+                                        <entry>
+                                            <name>/opt/lter/infra/ansible/1_PAM_limits.yml</name>
+                                            <file>${project.basedir}/ansible_yml/1_PAM_limits.yml</file>
+                                        </entry>
+                                        <entry>
+                                            <name>/opt/lter/infra/ansible/2_systemctl_stop.yml</name>
+                                            <file>${project.basedir}/ansible_yml/2_systemctl_stop.yml</file>
+                                        </entry>
+                                        <entry>
+                                            <name>/opt/lter/infra/ansible/3_sysctl.yml</name>
+                                            <file>${project.basedir}/ansible_yml/3_sysctl.yml</file>
+                                        </entry>
+                                        <entry>
+                                            <name>/opt/lter/infra/ansible/4_ntp.yml</name>
+                                            <file>${project.basedir}/ansible_yml/4_ntp.yml</file>
+                                        </entry>
+                                        <entry>
+                                            <name>/opt/lter/infra/ansible/5_visudo_vcs.yml</name>
+                                            <file>${project.basedir}/ansible_yml/5_visudo_vcs.yml</file>
+                                        </entry>
+                                        <entry>
+                                            <name>/opt/lter/infra/ansible/6_RMQ_vcs.yml</name>
+                                            <file>${project.basedir}/ansible_yml/6_RMQ_vcs.yml</file>
+                                        </entry>
+                                        <entry>
+                                            <name>/opt/lter/infra/ansible/7_openjdk.yml</name>
+                                            <file>${project.basedir}/ansible_yml/7_openjdk.yml</file>
+                                        </entry>
+                                        <entry>
+                                            <name>/opt/lter/infra/ansible/8-1_mariaDB.yml</name>
+                                            <file>${project.basedir}/ansible_yml/8-1_mariaDB.yml</file>
+                                        </entry>
+                                        <entry>
+                                            <name>/opt/lter/infra/ansible/8-2_mariaDB_chown.yml</name>
+                                            <file>${project.basedir}/ansible_yml/8-2_mariaDB_chown.yml</file>
+                                        </entry>
+                                        <entry>
+                                            <name>/opt/lter/infra/ansible/9-1_group_vcs.yml</name>
+                                            <file>${project.basedir}/ansible_yml/9-1_group_vcs.yml</file>
+                                        </entry>
+                                        <entry>
+                                            <name>/opt/lter/infra/ansible/9-2_chmod_vcs.yml</name>
+                                            <file>${project.basedir}/ansible_yml/9-2_chmod_vcs.yml</file>
+                                        </entry>
+                                        <entry>
+                                            <name>/opt/lter/infra/ansible/10-1_group_vcweb.yml</name>
+                                            <file>${project.basedir}/ansible_yml/10-1_group_vcweb.yml</file>
+                                        </entry>
+                                        <entry>
+                                            <name>/opt/lter/infra/ansible/10-2_chmod_vcweb.yml</name>
+                                            <file>${project.basedir}/ansible_yml/10-2_chmod_vcweb.yml</file>
+                                        </entry>
+                                        <entry>
+                                            <name>/opt/lter/infra/ansible/11_vcs_dic.yml</name>
+                                            <file>${project.basedir}/ansible_yml/11_vcs_dic.yml</file>
+                                        </entry>
+                                        <entry>
+                                            <name>/opt/lter/infra/ansible/12_Cron_root.yml</name>
+                                            <file>${project.basedir}/ansible_yml/12_Cron_root.yml</file>
+                                        </entry>
+                                        <entry>
+                                            <name>/opt/lter/infra/ansible/13_service_start.yml</name>
+                                            <file>${project.basedir}/ansible_yml/13_service_start.yml</file>
+                                        </entry>
+                                        <entry>
+                                            <name>/opt/lter/infra/ansible/14_ramdisk.yml</name>
+                                            <file>${project.basedir}/ansible_yml/14_ramdisk.yml</file>
+                                        </entry>
+                                        <entry>
+                                            <name>/opt/lter/infra/ansible/15_ldconf.yml</name>
+                                            <file>${project.basedir}/ansible_yml/15_ldconf.yml</file>
+                                        </entry>
+                                        <entry>
+                                            <name>/opt/lter/infra/ansible/15_rclocal.yml</name>
+                                            <file>${project.basedir}/ansible_yml/15_rclocal.yml</file>
+                                        </entry>
+                                        <entry>
+                                            <name>/opt/lter/infra/ansible/16_watermark.yml</name>
+                                            <file>${project.basedir}/ansible_yml/16_watermark.yml</file>
+                                        </entry>
+
+                                        <!-- Validation 스크립트 -->
+                                        <entry>
+                                            <name>/opt/lter/infra/scripts/os_audit.sh</name>
+                                            <file>${project.basedir}/os_audit.sh</file>
+                                        </entry>
+                                        <entry>
+                                            <name>/opt/lter/infra/scripts/verify_vcs_install.sh</name>
+                                            <file>${project.basedir}/verify_vcs_install.sh</file>
+                                        </entry>
+                                    </entries>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+</project>

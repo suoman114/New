@@ -1,0 +1,2116 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LTER Infra 자동화</title>
+  <link href="/webjars/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/webjars/bootstrap-icons/1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    body { background:#f0f2f5; font-size:.92rem; }
+    .sidebar { width:200px; min-height:calc(100vh - 52px); background:#1e2430; padding:12px 8px; }
+    .sidebar .nav-link { color:#adb5bd; border-radius:6px; padding:7px 12px; display:flex; align-items:center; gap:8px; }
+    .sidebar .nav-link:hover { background:rgba(255,255,255,.08); color:#fff; }
+    .sidebar .nav-link.active { background:#0d6efd; color:#fff; }
+    .sidebar .nav-section { color:#6c757d; font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; padding:14px 12px 4px; }
+    .content { flex:1; padding:20px; overflow-y:auto; }
+    .section { display:none; }
+    .section.active { display:block; }
+    .card { border:none; box-shadow:0 1px 3px rgba(0,0,0,.08); border-radius:10px; }
+    .card-header { background:#fff; border-bottom:1px solid #f0f0f0; font-weight:600; font-size:.9rem; padding:12px 16px; border-radius:10px 10px 0 0 !important; }
+    .table th { font-size:.78rem; color:#6c757d; text-transform:uppercase; font-weight:600; white-space:nowrap; }
+    .table td { vertical-align:middle; }
+    .badge-RUNNING,.badge-RUNNING_STEP { background:#ffc107!important; color:#000!important; }
+    .badge-SUCCESS { background:#198754!important; }
+    .badge-FAIL { background:#dc3545!important; }
+    .badge-OK   { background:#198754!important; }
+    .badge-WARN { background:#ffc107!important; color:#000!important; }
+    .badge-WAITING_APPROVAL { background:#6610f2!important; }
+    .badge-CANCELLED { background:#6c757d!important; }
+    .badge-REGISTERED { background:#6c757d!important; }
+    .badge-OS_SETUP_DONE { background:#0d6efd!important; }
+    .badge-PKG_SETUP_DONE { background:#6f42c1!important; }
+    .badge-VERIFIED { background:#198754!important; }
+    .badge-ERROR { background:#dc3545!important; }
+    pre.log-box { background:#1a1d23; color:#d4d4d4; border-radius:8px; padding:12px 14px; font-size:.78rem; max-height:420px; overflow-y:auto; white-space:pre-wrap; word-break:break-all; margin:0; }
+    .log-box .log-ok    { color:#4ec9b0; }
+    .log-box .log-fail  { color:#f44747; }
+    .log-box .log-warn  { color:#ce9178; }
+    .log-box .log-start { color:#569cd6; }
+    .log-box .log-done  { color:#dcdcaa; }
+    .playbook-check { max-height:340px; overflow-y:auto; border:1px solid #dee2e6; border-radius:6px; padding:6px 8px; background:#fafafa; }
+    .playbook-check .form-check { padding:2px 0 2px 24px; }
+    .pb-item { display:flex; align-items:center; gap:6px; padding:2px 0; border-radius:4px; }
+    .pb-item:hover { background:#f0f0f0; }
+    .pb-drag-handle { cursor:grab; color:#adb5bd; font-size:.9rem; flex-shrink:0; }
+    .pb-drag-handle:active { cursor:grabbing; }
+    .pb-item.pb-dragging { opacity:.4; }
+    .pb-item.pb-drag-over { border-top:2px solid #0d6efd; }
+    .pb-group-label { font-size:.75rem; font-weight:600; color:#6c757d; padding:2px 4px; border-bottom:1px solid #dee2e6; margin-bottom:3px; }
+    .server-multi { max-height:160px; overflow-y:auto; border:1px solid #dee2e6; border-radius:6px; padding:6px 10px; background:#fafafa; }
+    .server-multi .form-check { padding:2px 0 2px 24px; }
+    .toast-container { position:fixed; bottom:1.2rem; right:1.2rem; z-index:9999; }
+    .step-card { border:1px solid #dee2e6; border-radius:8px; padding:12px 14px; margin-bottom:10px; background:#fff; transition: box-shadow .15s; }
+    .step-card .step-header { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+    .step-drag-handle { cursor:grab; color:#adb5bd; padding:0 4px; font-size:1.1rem; user-select:none; }
+    .step-drag-handle:active { cursor:grabbing; }
+    .step-card.dragging { opacity:.4; box-shadow:0 0 0 2px #0d6efd; }
+    .step-card.drag-over { border:2px dashed #0d6efd; background:#f0f6ff; }
+    .history-scroll { max-height:320px; overflow-y:auto; }
+    .badge { font-size:.72rem; }
+    .form-label { font-weight:600; font-size:.82rem; margin-bottom:3px; }
+    .section-title { font-weight:700; font-size:1.05rem; margin-bottom:16px; }
+  </style>
+</head>
+<body>
+<nav class="navbar navbar-dark bg-dark px-3 py-2" style="height:52px;">
+  <span class="navbar-brand fw-bold"><i class="bi bi-server me-2"></i>LTER Infra 자동화</span>
+  <span class="text-secondary small" id="navClock"></span>
+</nav>
+
+<div class="d-flex" style="height:calc(100vh - 52px);">
+  <!-- Sidebar -->
+  <div class="sidebar d-flex flex-column">
+    <div class="nav-section">인프라 관리</div>
+    <a class="nav-link active" href="#" onclick="nav('servers',this)"><i class="bi bi-hdd-network"></i>서버 관리</a>
+    <a class="nav-link" href="#" onclick="nav('setup',this)"><i class="bi bi-gear"></i>셋업 실행</a>
+    <a class="nav-link" href="#" onclick="nav('git',this)"><i class="bi bi-git"></i>Git 저장소</a>
+    <a class="nav-link" href="#" onclick="nav('packages',this)"><i class="bi bi-box-seam"></i>패키지</a>
+    <a class="nav-link" href="#" onclick="nav('scripts',this)"><i class="bi bi-file-code"></i>스크립트</a>
+    <a class="nav-link" href="#" onclick="nav('validation',this)"><i class="bi bi-check2-circle"></i>Validation</a>
+    <div class="nav-section">자동화</div>
+    <a class="nav-link" href="#" onclick="nav('pipelines',this)"><i class="bi bi-diagram-3"></i>파이프라인</a>
+    <div class="nav-section">분석</div>
+    <a class="nav-link" href="#" onclick="nav('report',this)"><i class="bi bi-file-earmark-bar-graph"></i>결과 보고서</a>
+    <div class="nav-section">시스템</div>
+    <a class="nav-link" href="#" onclick="nav('config',this)"><i class="bi bi-sliders"></i>시스템 설정</a>
+  </div>
+
+  <!-- Content -->
+  <div class="content">
+
+    <!-- ===== 서버 관리 ===== -->
+    <div class="section active" id="sec-servers">
+      <div class="d-flex align-items-center mb-3">
+        <span class="section-title mb-0">서버 관리</span>
+        <div class="ms-auto d-flex gap-2">
+          <button class="btn btn-primary btn-sm" onclick="openServerModal()"><i class="bi bi-plus-lg me-1"></i>서버 등록</button>
+          <button class="btn btn-outline-secondary btn-sm" onclick="loadServers()"><i class="bi bi-arrow-clockwise"></i></button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-body p-0">
+          <table class="table table-hover mb-0">
+            <thead><tr><th class="ps-3">ID</th><th>서버명</th><th>IP</th><th>OS</th><th>버전</th><th>상태</th><th>등록일</th><th>액션</th></tr></thead>
+            <tbody id="serverTbody"><tr><td colspan="8" class="text-center py-4 text-muted">로딩 중...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 셋업 실행 ===== -->
+    <div class="section" id="sec-setup">
+      <span class="section-title">셋업 실행</span>
+      <div class="row g-3">
+        <div class="col-12">
+          <div class="card">
+            <div class="card-header">셋업 실행</div>
+            <div class="card-body">
+              <div class="row g-3">
+                <div class="col-lg-5">
+                  <label class="form-label">대상 서버 (다중 선택)</label>
+                  <div class="server-multi" id="osServerList"></div>
+                </div>
+                <div class="col-lg-7">
+                  <label class="form-label">실행 Playbook <span class="text-muted fw-normal small">(드래그로 순서 변경)</span></label>
+                  <div class="d-flex gap-1 mb-1">
+                    <button class="btn btn-outline-secondary btn-sm py-0" onclick="pbCheckAll('allPlaybooks',true)">전체선택</button>
+                    <button class="btn btn-outline-secondary btn-sm py-0" onclick="pbCheckAll('allPlaybooks',false)">전체해제</button>
+                  </div>
+                  <div class="playbook-check" id="allPlaybooks"></div>
+                </div>
+              </div>
+              <hr class="my-3">
+              <div class="row g-2 align-items-end">
+                <div class="col-lg-2">
+                  <label class="form-label">NTP 서버 IP <span class="text-muted fw-normal">(선택)</span></label>
+                  <input type="text" class="form-control form-control-sm" id="osNtpServer" placeholder="192.168.7.23">
+                </div>
+                <div class="col-lg-2">
+                  <label class="form-label">MariaDB 비밀번호</label>
+                  <input type="text" class="form-control form-control-sm" id="pkgMariaPassword" placeholder="root.123">
+                </div>
+                <div class="col-lg-2">
+                  <label class="form-label">DB 이름</label>
+                  <input type="text" class="form-control form-control-sm" id="pkgDbName" placeholder="VCSM">
+                </div>
+                <div class="col-lg-3">
+                  <div class="form-check mb-1">
+                    <input class="form-check-input" type="checkbox" id="osContinueOnFailure">
+                    <label class="form-check-label small text-muted" for="osContinueOnFailure">실패 시 계속 진행</label>
+                  </div>
+                </div>
+                <div class="col-lg-3">
+                  <button class="btn btn-primary btn-sm w-100" onclick="runSetupAll()"><i class="bi bi-play-fill me-1"></i>셋업 실행</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 셋업 로그 & 이력 -->
+        <div class="col-12">
+          <div class="card">
+            <div class="card-header d-flex align-items-center">
+              실행 로그 / 이력
+              <div class="ms-auto d-flex gap-2 align-items-center">
+                <select class="form-select form-select-sm" id="setupHistoryServerId" style="width:200px;"></select>
+                <button class="btn btn-outline-secondary btn-sm" onclick="loadSetupHistory()"><i class="bi bi-search"></i></button>
+              </div>
+            </div>
+            <div class="card-body p-2">
+              <pre class="log-box mb-2" id="setupLogBox">실행 버튼을 누르면 실시간 로그가 출력됩니다.</pre>
+            </div>
+            <div class="card-body p-0 border-top">
+              <div class="history-scroll">
+                <table class="table table-hover table-sm mb-0">
+                  <thead><tr><th class="ps-3">ID</th><th>타입</th><th>Playbook</th><th>서버</th><th>상태</th><th>시작</th><th>종료</th><th>로그</th></tr></thead>
+                  <tbody id="setupHistoryTbody"><tr><td colspan="8" class="text-center py-3 text-muted">서버를 선택하세요</td></tr></tbody>
+                </table>
+              </div>
+              <div class="d-flex justify-content-end gap-2 p-2 border-top" id="setupHistoryPager"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== Git 저장소 ===== -->
+    <div class="section" id="sec-git">
+      <div class="d-flex align-items-center mb-3">
+        <span class="section-title mb-0">Git 저장소</span>
+        <div class="ms-auto d-flex gap-2">
+          <button class="btn btn-primary btn-sm" onclick="openGitModal()"><i class="bi bi-plus-lg me-1"></i>저장소 등록</button>
+          <button class="btn btn-outline-secondary btn-sm" onclick="loadGitRepos()"><i class="bi bi-arrow-clockwise"></i></button>
+        </div>
+      </div>
+      <div class="card mb-3">
+        <div class="card-body p-0">
+          <table class="table table-hover mb-0">
+            <thead><tr><th class="ps-3">ID</th><th>이름</th><th>URL</th><th>브랜치</th><th>타입</th><th>인증</th><th>최근 Pull</th><th>액션</th></tr></thead>
+            <tbody id="gitTbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card" id="gitLogCard" style="display:none;">
+        <div class="card-header fw-semibold" id="gitLogCardTitle">Git 실행 로그</div>
+        <div class="card-body p-2">
+          <pre class="log-box" id="gitLogBox" style="max-height:220px;"></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 패키지 ===== -->
+    <div class="section" id="sec-packages">
+      <span class="section-title">패키지</span>
+      <div class="row g-3">
+        <!-- 패키지 파일 목록 + 배포 -->
+        <div class="col-lg-5">
+          <div class="card h-100">
+            <div class="card-header d-flex align-items-center">
+              패키지 파일 목록
+              <div class="ms-auto d-flex gap-1">
+                <label class="btn btn-outline-primary btn-sm py-0 mb-0" style="cursor:pointer">
+                  <i class="bi bi-upload me-1"></i>업로드
+                  <input type="file" accept=".tar.gz,.tgz,.gz,.zip" style="display:none" onchange="uploadPackageFile(this)">
+                </label>
+                <button class="btn btn-outline-secondary btn-sm py-0" onclick="loadPackageFiles()"><i class="bi bi-arrow-clockwise"></i></button>
+              </div>
+            </div>
+            <div class="card-body p-2" style="max-height:260px;overflow-y:auto;">
+              <div id="pkgFileList" class="text-muted small text-center py-3">로딩 중...</div>
+            </div>
+            <div class="card-footer bg-white border-top p-2">
+              <div class="mb-2">
+                <label class="form-label mb-1">대상 서버</label>
+                <select class="form-select form-select-sm" id="pkgDeployServerId"></select>
+              </div>
+              <div class="row g-2 mb-2">
+                <div class="col-6">
+                  <label class="form-label mb-1">SSH 패스워드</label>
+                  <input type="password" class="form-control form-control-sm" id="pkgDeployPw" placeholder="root 패스워드">
+                </div>
+                <div class="col-3">
+                  <label class="form-label mb-1">SSH 포트</label>
+                  <input type="number" class="form-control form-control-sm" id="pkgDeployPort" value="22">
+                </div>
+              </div>
+              <div class="mb-2">
+                <label class="form-label mb-1">원격 저장 경로</label>
+                <input type="text" class="form-control form-control-sm" id="pkgDeployRemotePath" placeholder="/opt/vcs">
+              </div>
+              <button class="btn btn-success btn-sm w-100" onclick="deployPackages()"><i class="bi bi-send me-1"></i>선택 파일 배포</button>
+            </div>
+          </div>
+        </div>
+        <!-- 배포 로그 + 등록 패키지 -->
+        <div class="col-lg-7">
+          <div class="card mb-3">
+            <div class="card-header">배포 로그</div>
+            <div class="card-body p-2">
+              <pre class="log-box" id="pkgDeployLogBox" style="max-height:200px;">배포 실행 버튼을 누르면 실시간 로그가 출력됩니다.</pre>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header d-flex align-items-center">
+              등록된 패키지 (DB)
+              <div class="ms-auto d-flex gap-1">
+                <button class="btn btn-outline-primary btn-sm py-0" onclick="openPkgModal()"><i class="bi bi-plus-lg"></i></button>
+                <button class="btn btn-outline-secondary btn-sm py-0" onclick="loadPackages()"><i class="bi bi-arrow-clockwise"></i></button>
+              </div>
+            </div>
+            <div class="card-body p-0">
+              <table class="table table-hover table-sm mb-0">
+                <thead><tr><th class="ps-3">ID</th><th>패키지명</th><th>버전</th><th>OS</th><th>액션</th></tr></thead>
+                <tbody id="pkgTbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 스크립트 ===== -->
+    <div class="section" id="sec-scripts">
+      <span class="section-title">Validation 스크립트</span>
+      <div class="row g-3">
+        <!-- 파일시스템 .sh 목록 -->
+        <div class="col-lg-4">
+          <div class="card h-100">
+            <div class="card-header d-flex align-items-center">
+              스크립트 파일 목록 (.sh)
+              <div class="ms-auto d-flex gap-1">
+                <label class="btn btn-outline-primary btn-sm py-0 mb-0" style="cursor:pointer">
+                  <i class="bi bi-upload me-1"></i>업로드
+                  <input type="file" accept=".sh" style="display:none" onchange="uploadScriptFile(this)">
+                </label>
+                <button class="btn btn-outline-secondary btn-sm py-0" onclick="loadScriptFiles()"><i class="bi bi-arrow-clockwise"></i></button>
+              </div>
+            </div>
+            <div class="card-body p-2" style="max-height:320px;overflow-y:auto;">
+              <div id="scriptFileList" class="text-muted small text-center py-3">로딩 중...</div>
+            </div>
+          </div>
+        </div>
+        <!-- 등록된 스크립트 DB -->
+        <div class="col-lg-8">
+          <div class="card">
+            <div class="card-header d-flex align-items-center">
+              등록된 스크립트 (DB)
+              <div class="ms-auto d-flex gap-1">
+                <button class="btn btn-outline-primary btn-sm py-0" onclick="openScriptModal()"><i class="bi bi-plus-lg"></i></button>
+                <button class="btn btn-outline-secondary btn-sm py-0" onclick="loadScripts()"><i class="bi bi-arrow-clockwise"></i></button>
+              </div>
+            </div>
+            <div class="card-body p-0">
+              <table class="table table-hover mb-0">
+                <thead><tr><th class="ps-3">ID</th><th>스크립트명</th><th>타입</th><th>로컬 경로</th><th>Git 경로</th><th>액션</th></tr></thead>
+                <tbody id="scriptTbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 스크립트 실행 -->
+      <div class="row g-3 mt-1">
+        <div class="col-lg-4">
+          <div class="card">
+            <div class="card-header">스크립트 실행</div>
+            <div class="card-body">
+              <div class="mb-2">
+                <label class="form-label">스크립트</label>
+                <select class="form-select form-select-sm" id="runScriptId"></select>
+              </div>
+              <div class="mb-2">
+                <label class="form-label">대상 서버 <span class="text-muted fw-normal small">(다중 선택)</span></label>
+                <div id="runScriptServers" class="border rounded p-2" style="max-height:140px;overflow-y:auto;"></div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">실행 인자 <span class="text-muted fw-normal small">(선택)</span></label>
+                <input type="text" class="form-control form-control-sm" id="runScriptArgs" placeholder="예: status 또는 --option value">
+              </div>
+              <button class="btn btn-primary btn-sm w-100" onclick="runScriptBatch()"><i class="bi bi-play-fill me-1"></i>실행</button>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-8">
+          <div class="card">
+            <div class="card-header d-flex align-items-center">
+              실행 이력
+              <div class="ms-auto d-flex gap-2 align-items-center">
+                <select class="form-select form-select-sm" id="runScriptHistoryServerId" style="width:180px;"></select>
+                <button class="btn btn-outline-secondary btn-sm" onclick="loadScriptRunHistory(0)"><i class="bi bi-search"></i></button>
+              </div>
+            </div>
+            <div class="history-scroll">
+              <table class="table table-hover table-sm mb-0">
+                <thead><tr><th class="ps-3">ID</th><th>스크립트</th><th>상태</th><th>시작</th><th>로그</th></tr></thead>
+                <tbody id="scriptRunHistoryTbody"></tbody>
+              </table>
+            </div>
+            <div class="d-flex justify-content-end gap-2 p-2 border-top" id="scriptRunHistoryPager"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== Validation ===== -->
+    <div class="section" id="sec-validation">
+      <span class="section-title">Validation 실행</span>
+      <div class="row g-3">
+        <div class="col-lg-4">
+          <div class="card">
+            <div class="card-header">실행</div>
+            <div class="card-body">
+              <div class="mb-3">
+                <label class="form-label">대상 서버</label>
+                <select class="form-select form-select-sm" id="valServerId"></select>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">스크립트</label>
+                <select class="form-select form-select-sm" id="valScriptId"></select>
+              </div>
+              <button class="btn btn-primary btn-sm w-100" onclick="runValidation()"><i class="bi bi-play-fill me-1"></i>Validation 실행</button>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-8">
+          <div class="card">
+            <div class="card-header d-flex align-items-center">
+              이력
+              <div class="ms-auto d-flex gap-2 align-items-center">
+                <select class="form-select form-select-sm" id="valHistoryServerId" style="width:180px;"></select>
+                <button class="btn btn-outline-secondary btn-sm" onclick="loadValidationHistory(0)"><i class="bi bi-search"></i></button>
+              </div>
+            </div>
+            <div class="history-scroll">
+              <table class="table table-hover table-sm mb-0">
+                <thead><tr><th class="ps-3">ID</th><th>스크립트</th><th>상태</th><th>시작</th><th>로그</th></tr></thead>
+                <tbody id="valHistoryTbody"></tbody>
+              </table>
+            </div>
+            <div class="d-flex justify-content-end gap-2 p-2 border-top" id="valHistoryPager"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 파이프라인 ===== -->
+    <div class="section" id="sec-pipelines">
+      <div class="d-flex align-items-center mb-3">
+        <span class="section-title mb-0">파이프라인</span>
+        <div class="ms-auto d-flex gap-2">
+          <button class="btn btn-primary btn-sm" onclick="openPipelineModal()"><i class="bi bi-plus-lg me-1"></i>파이프라인 생성</button>
+          <button class="btn btn-outline-secondary btn-sm" onclick="loadPipelines()"><i class="bi bi-arrow-clockwise"></i></button>
+        </div>
+      </div>
+      <div class="row g-3">
+        <div class="col-lg-5">
+          <div class="card">
+            <div class="card-body p-0">
+              <table class="table table-hover mb-0">
+                <thead><tr><th class="ps-3">ID</th><th>이름</th><th>모드</th><th>단계</th><th>액션</th></tr></thead>
+                <tbody id="pipelineTbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-7">
+          <div class="card" id="pipelineRunCard" style="display:none;">
+            <div class="card-header d-flex align-items-center" id="pipelineRunHeader">실행 모니터</div>
+            <div class="card-body p-2">
+              <pre class="log-box" id="pipelineLogBox">파이프라인을 실행하면 로그가 출력됩니다.</pre>
+            </div>
+            <div class="card-body p-0 border-top">
+              <div id="approvalBanner" class="d-none alert alert-warning m-2 mb-0 py-2 d-flex align-items-center gap-2">
+                <i class="bi bi-pause-circle-fill"></i>
+                <span>다음 단계 진행 승인이 필요합니다.</span>
+                <div class="ms-auto d-flex gap-2">
+                  <button class="btn btn-success btn-sm" onclick="pipelineApprove(true)">승인</button>
+                  <button class="btn btn-danger btn-sm" onclick="pipelineApprove(false)">취소</button>
+                </div>
+              </div>
+              <div class="history-scroll">
+                <table class="table table-hover table-sm mb-0">
+                  <thead><tr><th class="ps-3">Run ID</th><th>상태</th><th>단계</th><th>시작</th><th>종료</th></tr></thead>
+                  <tbody id="pipelineRunTbody"></tbody>
+                </table>
+              </div>
+              <div class="d-flex justify-content-end gap-2 p-2 border-top" id="pipelineRunPager"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 결과 보고서 ===== -->
+    <div class="section" id="sec-report">
+      <div class="d-flex align-items-center mb-3">
+        <span class="section-title mb-0">결과 보고서</span>
+        <div class="ms-auto d-flex gap-2 align-items-center">
+          <select class="form-select form-select-sm" id="reportServerId" style="width:220px;"></select>
+          <button class="btn btn-primary btn-sm" onclick="generateReport()"><i class="bi bi-search me-1"></i>보고서 생성</button>
+          <div id="reportHtmlBtns" style="display:none" class="d-flex gap-1">
+            <div class="btn-group btn-group-sm">
+              <button class="btn btn-outline-secondary" onclick="openHtmlReport('os',false)">OS</button>
+              <button class="btn btn-outline-secondary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown"></button>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item" onclick="openHtmlReport('os',false)"><i class="bi bi-eye me-2"></i>새 탭에서 보기</a></li>
+                <li><a class="dropdown-item" onclick="openHtmlReport('os',true)"><i class="bi bi-download me-2"></i>HTML 파일 저장</a></li>
+              </ul>
+            </div>
+            <div class="btn-group btn-group-sm">
+              <button class="btn btn-outline-secondary" onclick="openHtmlReport('pkg',false)">PKG</button>
+              <button class="btn btn-outline-secondary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown"></button>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item" onclick="openHtmlReport('pkg',false)"><i class="bi bi-eye me-2"></i>새 탭에서 보기</a></li>
+                <li><a class="dropdown-item" onclick="openHtmlReport('pkg',true)"><i class="bi bi-download me-2"></i>HTML 파일 저장</a></li>
+              </ul>
+            </div>
+            <div class="btn-group btn-group-sm">
+              <button class="btn btn-outline-secondary" onclick="openHtmlReport('validation',false)">검증</button>
+              <button class="btn btn-outline-secondary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown"></button>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item" onclick="openHtmlReport('validation',false)"><i class="bi bi-eye me-2"></i>새 탭에서 보기</a></li>
+                <li><a class="dropdown-item" onclick="openHtmlReport('validation',true)"><i class="bi bi-download me-2"></i>HTML 파일 저장</a></li>
+              </ul>
+            </div>
+          </div>
+          <button class="btn btn-success btn-sm" id="reportDownloadBtn" style="display:none" onclick="downloadReportXlsx()"></button>
+        </div>
+      </div>
+      <div id="reportContent" class="d-none">
+        <!-- 서버 요약 -->
+        <div class="alert alert-secondary py-2 mb-3 small" id="reportMeta"></div>
+        <!-- OS 셋업 -->
+        <div class="card mb-3">
+          <div class="card-header fw-bold"><i class="bi bi-gear me-1"></i>OS 셋업 결과</div>
+          <div class="card-body p-0">
+            <table class="table table-sm table-hover mb-0" id="reportOsTable">
+              <thead class="table-light"><tr><th class="ps-3" style="width:220px">Playbook</th><th>설명</th><th style="width:90px">상태</th><th style="width:145px">시작</th><th style="width:145px">종료</th></tr></thead>
+              <tbody id="reportOsTbody"></tbody>
+            </table>
+          </div>
+        </div>
+        <!-- PKG 셋업 -->
+        <div class="card mb-3">
+          <div class="card-header fw-bold"><i class="bi bi-box-seam me-1"></i>PKG 셋업 결과</div>
+          <div class="card-body p-0">
+            <table class="table table-sm table-hover mb-0">
+              <thead class="table-light"><tr><th class="ps-3" style="width:220px">Playbook</th><th>설명</th><th style="width:90px">상태</th><th style="width:145px">시작</th><th style="width:145px">종료</th></tr></thead>
+              <tbody id="reportPkgTbody"></tbody>
+            </table>
+          </div>
+        </div>
+        <!-- Validation -->
+        <div class="card mb-3" id="reportValCard" style="display:none">
+          <div class="card-header fw-bold"><i class="bi bi-check2-circle me-1"></i>Validation 결과 (VCS 설치 검증)</div>
+          <div class="card-body p-0" id="reportValBody"></div>
+        </div>
+        <!-- VCS Link 결과 -->
+        <div class="card mb-3" id="reportVcsLinkCard" style="display:none">
+          <div class="card-header fw-bold"><i class="bi bi-link-45deg me-1"></i>VCS Link 실행 결과</div>
+          <div class="card-body p-0" id="reportVcsLinkBody"></div>
+        </div>
+        <!-- OS Audit 섹션 -->
+        <div class="card mb-3" id="reportAuditCard" style="display:none">
+          <div class="card-header fw-bold"><i class="bi bi-clipboard-data me-1"></i>OS Audit 상세</div>
+          <div class="card-body" id="reportAuditBody"></div>
+        </div>
+      </div>
+      <div id="reportEmpty" class="text-center text-muted py-5">서버를 선택하고 보고서 생성 버튼을 클릭하세요.</div>
+    </div>
+
+    <!-- ===== 시스템 설정 ===== -->
+    <div class="section" id="sec-config">
+      <span class="section-title">시스템 설정</span>
+      <div class="card" style="max-width:600px;">
+        <div class="card-header">경로 설정</div>
+        <div class="card-body" id="configBody"><div class="text-muted text-center py-3">로딩 중...</div></div>
+        <div class="card-footer bg-white border-top">
+          <button class="btn btn-primary btn-sm" onclick="saveConfig()"><i class="bi bi-save me-1"></i>저장</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /d-flex -->
+
+<!-- Toast -->
+<div class="toast-container">
+  <div id="toastEl" class="toast align-items-center text-white border-0" role="alert">
+    <div class="d-flex">
+      <div class="toast-body" id="toastMsg"></div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>
+  </div>
+</div>
+
+<!-- 로그 모달 -->
+<div class="modal fade" id="logModal" tabindex="-1">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header py-2"><h6 class="modal-title fw-bold">실행 로그 <span id="logModalTitle" class="text-muted small"></span></h6><button class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="row">
+          <div class="col-6"><div class="small fw-bold text-success mb-1">STDOUT</div><pre class="log-box" id="logStdout">-</pre></div>
+          <div class="col-6"><div class="small fw-bold text-danger mb-1">STDERR</div><pre class="log-box" id="logStderr">-</pre></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 서버 등록/수정 모달 -->
+<div class="modal fade" id="serverModal" tabindex="-1">
+  <div class="modal-dialog modal-lg"><div class="modal-content">
+    <div class="modal-header py-2"><h6 class="modal-title fw-bold" id="serverModalTitle">서버 등록</h6><button class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <input type="hidden" id="serverEditId">
+      <!-- 탭 (수정 모드에서는 숨김) -->
+      <ul class="nav nav-tabs nav-sm mb-3" id="serverModalTabs">
+        <li class="nav-item"><a class="nav-link active" href="#" onclick="switchServerTab('single',this);return false;">단일 등록</a></li>
+        <li class="nav-item"><a class="nav-link" href="#" onclick="switchServerTab('bulk',this);return false;">일괄 등록</a></li>
+      </ul>
+      <!-- 단일 등록 -->
+      <div id="serverTabSingle">
+        <div class="row g-2">
+          <div class="col-6"><label class="form-label">서버명 *</label><input type="text" class="form-control form-control-sm" id="svrName" placeholder="vcs-busan-01"></div>
+          <div class="col-6"><label class="form-label">IP 주소 *</label><input type="text" class="form-control form-control-sm" id="svrIp" placeholder="192.168.1.10"></div>
+          <div class="col-4"><label class="form-label">OS 타입 *</label><select class="form-select form-select-sm" id="svrOs"><option value="CENTOS">CentOS</option><option value="UBUNTU">Ubuntu</option></select></div>
+          <div class="col-4"><label class="form-label">OS 버전</label><input type="text" class="form-control form-control-sm" id="svrOsVer" placeholder="7.9"></div>
+          <div class="col-12"><label class="form-label">설명</label><input type="text" class="form-control form-control-sm" id="svrDesc"></div>
+        </div>
+      </div>
+      <!-- 일괄 등록 -->
+      <div id="serverTabBulk" style="display:none">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span class="small text-muted">여러 서버를 한 번에 등록합니다.</span>
+          <button class="btn btn-outline-secondary btn-sm" onclick="addBulkRow()"><i class="bi bi-plus-lg me-1"></i>행 추가</button>
+        </div>
+        <div style="max-height:320px;overflow-y:auto;">
+          <table class="table table-sm table-bordered mb-0" id="bulkTable">
+            <thead class="table-light"><tr>
+              <th style="width:28%">서버명 *</th><th style="width:25%">IP 주소 *</th>
+              <th style="width:14%">OS 타입</th><th style="width:12%">OS 버전</th>
+              <th>설명</th><th style="width:36px"></th>
+            </tr></thead>
+            <tbody id="bulkTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer py-2">
+      <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">취소</button>
+      <button class="btn btn-primary btn-sm" id="serverSaveBtn" onclick="saveServer()">저장</button>
+    </div>
+  </div></div>
+</div>
+
+<!-- Git 저장소 모달 -->
+<div class="modal fade" id="gitModal" tabindex="-1">
+  <div class="modal-dialog modal-lg"><div class="modal-content">
+    <div class="modal-header py-2"><h6 class="modal-title fw-bold" id="gitModalTitle">Git 저장소 등록</h6><button class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <input type="hidden" id="gitEditId">
+      <div class="row g-2">
+        <div class="col-6"><label class="form-label">저장소 이름 *</label><input type="text" class="form-control form-control-sm" id="gitName"></div>
+        <div class="col-6"><label class="form-label">브랜치 *</label><input type="text" class="form-control form-control-sm" id="gitBranch" placeholder="main"></div>
+        <div class="col-12"><label class="form-label">저장소 URL *</label><input type="text" class="form-control form-control-sm" id="gitUrl"></div>
+        <div class="col-4"><label class="form-label">인증 방식 *</label><select class="form-select form-select-sm" id="gitAuth" onchange="toggleGitAuth()"><option value="PASSWORD">PASSWORD</option><option value="SSH">SSH</option></select></div>
+        <div class="col-4"><label class="form-label">저장소 타입 *</label><select class="form-select form-select-sm" id="gitRepoType"><option value="RPM">RPM</option><option value="SCRIPT">SCRIPT</option></select></div>
+        <div class="col-12" id="gitPasswordFields">
+          <div class="row g-2">
+            <div class="col-6"><label class="form-label">Username</label><input type="text" class="form-control form-control-sm" id="gitUsername"></div>
+            <div class="col-6"><label class="form-label">Password</label><input type="password" class="form-control form-control-sm" id="gitPassword"></div>
+          </div>
+        </div>
+        <div class="col-12" id="gitSshFields" style="display:none;"><label class="form-label">SSH Key 경로</label><input type="text" class="form-control form-control-sm" id="gitSshKey" placeholder="/root/.ssh/id_rsa"></div>
+        <div class="col-12"><label class="form-label">로컬 저장 경로 *</label><input type="text" class="form-control form-control-sm" id="gitLocalPath" placeholder="/opt/lter/infra/repos/vcs-repo"></div>
+        <div class="col-12"><label class="form-label">설명</label><input type="text" class="form-control form-control-sm" id="gitDesc"></div>
+      </div>
+    </div>
+    <div class="modal-footer py-2"><button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">취소</button><button class="btn btn-primary btn-sm" onclick="saveGitRepo()">저장</button></div>
+  </div></div>
+</div>
+
+<!-- 패키지 모달 -->
+<div class="modal fade" id="pkgModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header py-2"><h6 class="modal-title fw-bold" id="pkgModalTitle">패키지 등록</h6><button class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <input type="hidden" id="pkgEditId">
+      <div class="row g-2">
+        <div class="col-6"><label class="form-label">패키지명 *</label><input type="text" class="form-control form-control-sm" id="pkgName"></div>
+        <div class="col-6"><label class="form-label">버전 *</label><input type="text" class="form-control form-control-sm" id="pkgVersion" placeholder="R1.0.0"></div>
+        <div class="col-12"><label class="form-label">로컬 경로 *</label><input type="text" class="form-control form-control-sm" id="pkgLocalPath"></div>
+        <div class="col-4"><label class="form-label">대상 OS *</label><select class="form-select form-select-sm" id="pkgOs"><option value="CENTOS">CentOS</option><option value="UBUNTU">Ubuntu</option></select></div>
+        <div class="col-4"><label class="form-label">Git Repo ID</label><input type="number" class="form-control form-control-sm" id="pkgGitRepoId" placeholder="선택"></div>
+        <div class="col-12"><label class="form-label">Git 내 경로</label><input type="text" class="form-control form-control-sm" id="pkgGitPath"></div>
+        <div class="col-12"><label class="form-label">설명</label><input type="text" class="form-control form-control-sm" id="pkgDesc"></div>
+      </div>
+    </div>
+    <div class="modal-footer py-2"><button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">취소</button><button class="btn btn-primary btn-sm" onclick="savePkg()">저장</button></div>
+  </div></div>
+</div>
+
+<!-- 스크립트 모달 -->
+<div class="modal fade" id="scriptModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header py-2"><h6 class="modal-title fw-bold" id="scriptModalTitle">스크립트 등록</h6><button class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <input type="hidden" id="scriptEditId">
+      <div class="row g-2">
+        <div class="col-6"><label class="form-label">스크립트명 *</label><input type="text" class="form-control form-control-sm" id="scriptName"></div>
+        <div class="col-6"><label class="form-label">타입 *</label><select class="form-select form-select-sm" id="scriptType"><option value="OS_AUDIT">OS_AUDIT</option><option value="VCS_INSTALL_VERIFY">VCS_INSTALL_VERIFY</option></select></div>
+        <div class="col-12"><label class="form-label">로컬 경로 *</label><input type="text" class="form-control form-control-sm" id="scriptLocalPath"></div>
+        <div class="col-4"><label class="form-label">Git Repo ID</label><input type="number" class="form-control form-control-sm" id="scriptGitRepoId" placeholder="선택"></div>
+        <div class="col-8"><label class="form-label">Git 내 경로</label><input type="text" class="form-control form-control-sm" id="scriptGitPath"></div>
+        <div class="col-12"><label class="form-label">설명</label><input type="text" class="form-control form-control-sm" id="scriptDesc"></div>
+      </div>
+    </div>
+    <div class="modal-footer py-2"><button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">취소</button><button class="btn btn-primary btn-sm" onclick="saveScript()">저장</button></div>
+  </div></div>
+</div>
+
+<!-- 파이프라인 생성/수정 모달 -->
+<div class="modal fade" id="pipelineModal" tabindex="-1">
+  <div class="modal-dialog modal-xl"><div class="modal-content">
+    <div class="modal-header py-2"><h6 class="modal-title fw-bold" id="pipelineModalTitle">파이프라인 생성</h6><button class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <input type="hidden" id="pipelineEditId">
+      <div class="row g-2 mb-3">
+        <div class="col-5"><label class="form-label">이름 *</label><input type="text" class="form-control form-control-sm" id="plName"></div>
+        <div class="col-3"><label class="form-label">실행 모드 *</label>
+          <select class="form-select form-select-sm" id="plMode">
+            <option value="AUTO">AUTO (자동)</option>
+            <option value="MANUAL">MANUAL (수동 승인)</option>
+          </select>
+        </div>
+        <div class="col-4"><label class="form-label">설명</label><input type="text" class="form-control form-control-sm" id="plDesc"></div>
+      </div>
+      <div class="d-flex align-items-center mb-2">
+        <span class="fw-bold">단계 구성</span>
+        <button class="btn btn-outline-primary btn-sm ms-auto" onclick="addStep()"><i class="bi bi-plus-lg me-1"></i>단계 추가</button>
+      </div>
+      <div id="stepContainer"></div>
+    </div>
+    <div class="modal-footer py-2"><button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">취소</button><button class="btn btn-primary btn-sm" onclick="savePipeline()">저장</button></div>
+  </div></div>
+</div>
+
+<!-- 서버 없음 경고 모달 -->
+<!-- 파이프라인 SSH 패스워드 입력 모달 -->
+<div class="modal fade" id="pipelineRunModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:480px;">
+    <div class="modal-content">
+      <div class="modal-header"><h6 class="modal-title fw-bold">파이프라인 실행 - SSH 패스워드</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <p class="text-muted small mb-3">OS_SETUP 단계가 포함된 서버의 root 패스워드를 입력하세요. (0_auto_pass.yml 실행 시 사용)</p>
+        <div id="pipelineRunPwList"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">취소</button>
+        <button class="btn btn-primary btn-sm" onclick="confirmRunPipeline()"><i class="bi bi-play-fill me-1"></i>실행</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="noServerModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:420px;">
+    <div class="modal-content">
+      <div class="modal-body text-center py-4 px-4">
+        <div class="mb-3"><i class="bi bi-exclamation-triangle-fill text-warning" style="font-size:3rem;"></i></div>
+        <h6 class="fw-bold mb-2">등록된 서버가 없습니다</h6>
+        <p class="text-muted small mb-4">파이프라인을 구성하려면 먼저 대상 서버를 등록해야 합니다.<br>서버 관리 화면으로 이동하여 서버를 등록해 주세요.</p>
+        <div class="d-flex gap-2 justify-content-center">
+          <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">닫기</button>
+          <button class="btn btn-primary btn-sm" onclick="goToServerReg()"><i class="bi bi-hdd-network me-1"></i>서버 등록하러 가기</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/webjars/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+<script src="/js/xlsx.min.js"></script>
+<script>
+'use strict';
+const API = '/api/v1';
+let _servers = [], _scripts = [], _osPb = [], _pkgPb = [], _allPb = [];
+let _currentPipelineId = null, _currentRunId = null;
+let _sseSource = null;
+let _statusPoller = null;
+
+/* ── 공통 ─────────────────────────────────────── */
+async function api(method, path, body) {
+  const opts = { method, headers: {'Content-Type':'application/json'} };
+  if (body !== undefined) opts.body = JSON.stringify(body);
+  const res = await fetch(API + path, opts);
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.message || '오류 발생');
+  return json.data;
+}
+function toast(msg, ok=true) {
+  const el = document.getElementById('toastEl');
+  el.className = `toast align-items-center text-white border-0 bg-${ok?'success':'danger'}`;
+  document.getElementById('toastMsg').textContent = msg;
+  bootstrap.Toast.getOrCreateInstance(el, {delay:3000}).show();
+}
+function fmtDate(s) { return s ? s.replace('T',' ').substring(0,16) : '-'; }
+function badge(status) { return `<span class="badge badge-${status}">${status}</span>`; }
+function esc(s) { return s ? String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : ''; }
+
+function nav(name, el) {
+  event.preventDefault();
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById('sec-'+name).classList.add('active');
+  document.querySelectorAll('.sidebar .nav-link').forEach(l => l.classList.remove('active'));
+  el.classList.add('active');
+  const loaders = {
+    servers: loadServers,
+    setup: loadSetupSection,
+    git: loadGitRepos,
+    packages: loadPackageSection,
+    scripts: loadScriptSection,
+    validation: loadValidationSection,
+    pipelines: loadPipelines,
+    config: loadConfig,
+    report: loadReportSection
+  };
+  if (loaders[name]) loaders[name]();
+}
+
+// 시계
+setInterval(() => {
+  const now = new Date();
+  document.getElementById('navClock').textContent =
+    now.toLocaleDateString('ko-KR') + ' ' + now.toLocaleTimeString('ko-KR');
+}, 1000);
+
+/* ── 서버 관리 ────────────────────────────────── */
+async function loadServers() {
+  try {
+    _servers = await api('GET','/servers');
+    const tb = document.getElementById('serverTbody');
+    if (!_servers.length) { tb.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-muted">등록된 서버 없음</td></tr>'; return; }
+    tb.innerHTML = _servers.map(s=>`
+      <tr>
+        <td class="ps-3">${s.id}</td><td><strong>${esc(s.serverName)}</strong></td>
+        <td><code>${s.ipAddress}</code></td><td>${s.osType}</td>
+        <td>${s.osVersion||'-'}</td><td>${badge(s.status)}</td>
+        <td>${fmtDate(s.createdAt)}</td>
+        <td>
+          <button class="btn btn-outline-primary btn-sm py-0 px-1" onclick="openServerModal(${s.id})"><i class="bi bi-pencil"></i></button>
+          <button class="btn btn-outline-danger btn-sm py-0 px-1 ms-1" onclick="deleteServer(${s.id})"><i class="bi bi-trash"></i></button>
+        </td>
+      </tr>`).join('');
+  } catch(e) { toast(e.message,false); }
+}
+
+let _serverTab = 'single';
+function switchServerTab(tab, el) {
+  _serverTab = tab;
+  document.getElementById('serverTabSingle').style.display = tab==='single' ? '' : 'none';
+  document.getElementById('serverTabBulk').style.display   = tab==='bulk'   ? '' : 'none';
+  document.querySelectorAll('#serverModalTabs .nav-link').forEach(a => a.classList.remove('active'));
+  el.classList.add('active');
+  if (tab === 'bulk' && document.getElementById('bulkTbody').children.length === 0) addBulkRow();
+}
+function addBulkRow() {
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><input type="text" class="form-control form-control-sm bulk-name" placeholder="vcs-01"></td>
+    <td><input type="text" class="form-control form-control-sm bulk-ip" placeholder="192.168.1.10"></td>
+    <td><select class="form-select form-select-sm bulk-os"><option value="CENTOS">CentOS</option><option value="UBUNTU">Ubuntu</option></select></td>
+    <td><input type="text" class="form-control form-control-sm bulk-ver" placeholder="7.9"></td>
+    <td><input type="text" class="form-control form-control-sm bulk-desc"></td>
+    <td><button class="btn btn-outline-danger btn-sm py-0 px-1" onclick="this.closest('tr').remove()"><i class="bi bi-trash"></i></button></td>`;
+  document.getElementById('bulkTbody').appendChild(tr);
+}
+function openServerModal(id) {
+  _serverTab = 'single';
+  document.getElementById('serverEditId').value = id||'';
+  document.getElementById('serverModalTitle').textContent = id?'서버 수정':'서버 등록';
+  // 수정 모드에서는 탭 숨김
+  document.getElementById('serverModalTabs').style.display = id ? 'none' : '';
+  switchServerTab('single', document.querySelector('#serverModalTabs .nav-link'));
+  ['svrName','svrIp','svrOsVer','svrDesc'].forEach(f=>document.getElementById(f).value='');
+  document.getElementById('svrOs').value='CENTOS';
+  document.getElementById('bulkTbody').innerHTML = '';
+  if (id) {
+    const s = _servers.find(x=>x.id===id);
+    if (s) { document.getElementById('svrName').value=s.serverName; document.getElementById('svrIp').value=s.ipAddress; document.getElementById('svrOs').value=s.osType; document.getElementById('svrOsVer').value=s.osVersion||''; document.getElementById('svrDesc').value=s.description||''; }
+  }
+  new bootstrap.Modal(document.getElementById('serverModal')).show();
+}
+async function saveServer() {
+  const id = document.getElementById('serverEditId').value;
+  if (!id && _serverTab === 'bulk') {
+    const rows = [...document.querySelectorAll('#bulkTbody tr')];
+    if (!rows.length) { toast('행을 추가하세요.', false); return; }
+    const ipPattern = /^((25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(25[0-5]|2[0-4]\d|[01]?\d\d?)$/;
+    for (let i = 0; i < rows.length; i++) {
+      const name = rows[i].querySelector('.bulk-name').value.trim();
+      const ip   = rows[i].querySelector('.bulk-ip').value.trim();
+      if (!name) { toast(`${i+1}번째 행: 서버명을 입력하세요.`, false); return; }
+      if (!ip)   { toast(`${i+1}번째 행: IP 주소를 입력하세요.`, false); return; }
+      if (!ipPattern.test(ip)) { toast(`${i+1}번째 행: IP 주소 형식이 올바르지 않습니다. (${ip})`, false); return; }
+    }
+    const body = rows.map(tr => ({
+      serverName: tr.querySelector('.bulk-name').value.trim(),
+      ipAddress:  tr.querySelector('.bulk-ip').value.trim(),
+      osType:     tr.querySelector('.bulk-os').value,
+      osVersion:  tr.querySelector('.bulk-ver').value || null,
+      description:tr.querySelector('.bulk-desc').value || null
+    }));
+    try {
+      const result = await api('POST', '/servers/bulk', body);
+      bootstrap.Modal.getInstance(document.getElementById('serverModal')).hide();
+      toast(result.length + '개 서버가 등록되었습니다.');
+      loadServers();
+    } catch(e) { toast(e.message, false); }
+    return;
+  }
+  const body = {serverName:document.getElementById('svrName').value, ipAddress:document.getElementById('svrIp').value, osType:document.getElementById('svrOs').value, osVersion:document.getElementById('svrOsVer').value||null, description:document.getElementById('svrDesc').value||null};
+  try {
+    id ? await api('PUT','/servers/'+id,body) : await api('POST','/servers',body);
+    bootstrap.Modal.getInstance(document.getElementById('serverModal')).hide();
+    toast(id?'서버가 수정되었습니다.':'서버가 등록되었습니다.');
+    loadServers();
+  } catch(e) { toast(e.message,false); }
+}
+async function deleteServer(id) {
+  if (!confirm('서버를 삭제하시겠습니까?')) return;
+  try { await api('DELETE','/servers/'+id); toast('삭제되었습니다.'); loadServers(); } catch(e) { toast(e.message,false); }
+}
+
+/* ── 셋업 실행 ────────────────────────────────── */
+async function loadSetupSection() {
+  await loadServers();
+  // 서버 체크박스 (통합)
+  const osEl = document.getElementById('osServerList');
+  if (osEl) {
+    osEl.innerHTML = _servers.map(s=>`
+      <div class="d-flex align-items-center gap-2 mb-1">
+        <div class="form-check mb-0" style="min-width:190px">
+          <input class="form-check-input" type="checkbox" value="${s.id}" id="osServerList_${s.id}">
+          <label class="form-check-label" for="osServerList_${s.id}">[${s.id}] ${esc(s.serverName)}</label>
+        </div>
+        <input type="password" class="form-control form-control-sm" id="osPw_${s.id}" placeholder="root 패스워드" style="max-width:140px">
+        <input type="number" class="form-control form-control-sm" id="osSshPort_${s.id}" value="22" placeholder="port" style="max-width:60px">
+        <button class="btn btn-outline-secondary btn-sm py-0 px-2" onclick="pingServer(${s.id},this)" title="SSH 연결 테스트"><i class="bi bi-wifi"></i></button>
+        <span id="pingResult_${s.id}" class="small"></span>
+      </div>`).join('');
+  }
+  const histEl = document.getElementById('setupHistoryServerId');
+  if (histEl) {
+    histEl.innerHTML = _servers.map(s=>`<option value="${s.id}">[${s.id}] ${esc(s.serverName)} (${s.ipAddress})</option>`).join('');
+  }
+  // playbook 체크박스 (그룹 구분)
+  if (!_osPb.length)  { try { _osPb  = await api('GET','/setup/playbooks/os');  } catch(e) {} }
+  if (!_pkgPb.length) { try { _pkgPb = await api('GET','/setup/playbooks/pkg'); } catch(e) {} }
+  if (!_allPb.length) _allPb = [..._osPb, ..._pkgPb];
+  renderGroupedDraggablePlaybooks('allPlaybooks', _osPb, _pkgPb);
+}
+
+function renderPlaybookChecks(containerId, list) {
+  document.getElementById(containerId).innerHTML = list.map((pb,i)=>`
+    <div class="form-check">
+      <input class="form-check-input" type="checkbox" value="${pb}" id="${containerId}_${i}">
+      <label class="form-check-label small" for="${containerId}_${i}">${pb}</label>
+    </div>`).join('');
+}
+
+/** OS/PKG 그룹 구분 + 드래그 가능한 playbook 목록 렌더 */
+function renderGroupedDraggablePlaybooks(containerId, osList, pkgList, selectedList) {
+  const container = document.getElementById(containerId);
+  let html = '', idx = 0;
+
+  function pbRow(pb) {
+    const checked = !selectedList || selectedList.includes(pb) ? 'checked' : '';
+    const row = `<div class="pb-item" draggable="true" data-pb="${esc(pb)}">
+      <i class="bi bi-grip-vertical pb-drag-handle"></i>
+      <input class="form-check-input mt-0" type="checkbox" value="${esc(pb)}" id="${containerId}_${idx}" ${checked}>
+      <label class="form-check-label small" for="${containerId}_${idx}">${esc(pb)}</label>
+    </div>`;
+    idx++;
+    return row;
+  }
+
+  if (osList.length) {
+    html += `<div class="pb-group-label"><i class="bi bi-hdd me-1"></i>OS 셋업</div>`;
+    html += osList.map(pbRow).join('');
+  }
+  if (pkgList.length) {
+    html += `<div class="pb-group-label mt-2"><i class="bi bi-box me-1"></i>PKG 설치</div>`;
+    html += pkgList.map(pbRow).join('');
+  }
+  container.innerHTML = html;
+  initPbDrag(container);
+}
+
+/** 드래그 순서 변경 가능한 playbook 체크박스 목록 렌더 */
+function renderDraggablePlaybooks(containerId, list, selectedList) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = list.map((pb, i) => {
+    const checked = !selectedList || selectedList.includes(pb) ? 'checked' : '';
+    return `<div class="pb-item" draggable="true" data-pb="${esc(pb)}">
+      <i class="bi bi-grip-vertical pb-drag-handle"></i>
+      <input class="form-check-input mt-0" type="checkbox" value="${esc(pb)}" id="${containerId}_${i}" ${checked}>
+      <label class="form-check-label small" for="${containerId}_${i}">${esc(pb)}</label>
+    </div>`;
+  }).join('');
+  initPbDrag(container);
+}
+
+let _pbDragSrc = null;
+function initPbDrag(container) {
+  container.querySelectorAll('.pb-item').forEach(item => {
+    item.addEventListener('dragstart', e => {
+      _pbDragSrc = item;
+      item.classList.add('pb-dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    item.addEventListener('dragend', () => {
+      item.classList.remove('pb-dragging');
+      container.querySelectorAll('.pb-item').forEach(i => i.classList.remove('pb-drag-over'));
+    });
+    item.addEventListener('dragover', e => {
+      e.preventDefault();
+      if (item !== _pbDragSrc) item.classList.add('pb-drag-over');
+    });
+    item.addEventListener('dragleave', () => item.classList.remove('pb-drag-over'));
+    item.addEventListener('drop', e => {
+      e.preventDefault();
+      item.classList.remove('pb-drag-over');
+      if (!_pbDragSrc || _pbDragSrc === item) return;
+      const items = [...container.querySelectorAll('.pb-item')];
+      const si = items.indexOf(_pbDragSrc), di = items.indexOf(item);
+      if (si < di) container.insertBefore(_pbDragSrc, item.nextSibling);
+      else         container.insertBefore(_pbDragSrc, item);
+    });
+  });
+}
+
+function pbCheckAll(containerId, checked) {
+  document.querySelectorAll(`#${containerId} input[type=checkbox]`).forEach(cb => cb.checked = checked);
+}
+
+function checkAll(containerId, checked) {
+  document.querySelectorAll(`#${containerId} input[type=checkbox]`).forEach(cb => cb.checked = checked);
+}
+
+/** DOM 순서 기준으로 체크된 playbook 목록 반환 */
+function getOrderedCheckedPlaybooks(containerId) {
+  return [...document.querySelectorAll(`#${containerId} .pb-item input[type=checkbox]:checked`)].map(cb=>cb.value);
+}
+
+function getCheckedValues(containerId) {
+  return [...document.querySelectorAll(`#${containerId} input[type=checkbox]:checked`)].map(cb=>cb.value);
+}
+
+function appendLog(boxId, line) {
+  const box = document.getElementById(boxId);
+  let cls = '';
+  if (line.startsWith('[OK]') || line.startsWith('[START]')) cls = 'log-start';
+  else if (line.startsWith('[FAIL]') || line.startsWith('[ERROR]')) cls = 'log-fail';
+  else if (line.startsWith('[DONE]') || line.includes('=== 파이프라인')) cls = 'log-done';
+  else if (line.startsWith('[WAITING]')) cls = 'log-warn';
+  const span = cls ? `<span class="${cls}">${esc(line)}</span>` : esc(line);
+  box.innerHTML += span + '\n';
+  box.scrollTop = box.scrollHeight;
+}
+
+function startSse(url, logBoxId, onDone, onLog) {
+  if (_sseSource) { _sseSource.close(); }
+  const box = document.getElementById(logBoxId);
+  box.innerHTML = '';
+  _sseSource = new EventSource(url);
+  _sseSource.onmessage = e => {
+    appendLog(logBoxId, e.data);
+    if (onLog) onLog(e.data);
+    if (e.data === '[DONE]') { _sseSource.close(); _sseSource = null; if (onDone) onDone(); }
+    if (e.data === '[WAITING]' || e.data.startsWith('[WAITING]')) {
+      document.getElementById('approvalBanner') && document.getElementById('approvalBanner').classList.remove('d-none');
+    }
+  };
+  _sseSource.onerror = () => { appendLog(logBoxId, '[연결 종료]'); _sseSource.close(); _sseSource = null; };
+}
+
+async function runSetupAll(isRetry = false) {
+  const serverIds = getCheckedValues('osServerList').map(Number);
+  if (!serverIds.length) { toast('서버를 선택하세요.',false); return; }
+  const selectedPlaybooks = getOrderedCheckedPlaybooks('allPlaybooks');
+  if (!selectedPlaybooks.length) { toast('실행할 Playbook을 선택하세요.',false); return; }
+  const sshPasswords = {};
+  serverIds.forEach(id => { const v = document.getElementById('osPw_'+id); if(v&&v.value) sshPasswords[id]=v.value; });
+  const continueOnFailure = document.getElementById('osContinueOnFailure').checked;
+  const body = {
+    serverIds, selectedPlaybooks,
+    ntpServer: document.getElementById('osNtpServer').value||null,
+    mariaDbPassword: document.getElementById('pkgMariaPassword').value||null,
+    databaseName: document.getElementById('pkgDbName').value||null,
+    sshPasswords: Object.keys(sshPasswords).length ? sshPasswords : null,
+    continueOnFailure
+  };
+  let failedPlaybook = null;
+  try {
+    const jobKey = await api('POST','/setup/all', body);
+    toast(isRetry ? '실패 Playbook 재실행 중...' : '셋업이 시작되었습니다.');
+    startSse(
+      API+'/setup/jobs/'+jobKey+'/log-stream',
+      'setupLogBox',
+      () => {
+        loadSetupHistory();
+        if (failedPlaybook && !isRetry) {
+          checkAll('osPlaybooks', false); checkAll('pkgPlaybooks', false);
+          ['osPlaybooks','pkgPlaybooks'].forEach(cid => {
+            document.querySelectorAll('#'+cid+' input[type=checkbox]').forEach(cb => {
+              if (cb.value === failedPlaybook) cb.checked = true;
+            });
+          });
+          toast(`[${failedPlaybook}] 재실행 중...`);
+          runSetupAll(true);
+        } else {
+          toast(failedPlaybook ? '셋업 재실행도 실패하였습니다.' : '셋업 완료!');
+        }
+      },
+      (line) => {
+        const m = line.match(/^\[FAIL\] (\S+)/);
+        if (m) failedPlaybook = m[1];
+      }
+    );
+  } catch(e) { toast(e.message,false); }
+}
+
+// 하위 호환 (이력 재실행 버튼에서 호출)
+async function runOsSetup(isRetry = false) { return runSetupAll(isRetry); }
+async function runPkgSetup(isRetry = false) { return runSetupAll(isRetry); }
+
+async function pingServer(id, btn) {
+  btn.disabled = true;
+  const span = document.getElementById('pingResult_'+id);
+  span.innerHTML = '<span class="text-muted">확인 중...</span>';
+  const password = document.getElementById('osPw_'+id)?.value || null;
+  const portVal  = document.getElementById('osSshPort_'+id)?.value || '22';
+  try {
+    const r = await api('POST', '/servers/'+id+'/ping', {password: password||'', port: portVal});
+    const portBadge = r.portOpen
+      ? `<span class="text-success">✔ ${esc(r.portMessage)}</span>`
+      : `<span class="text-danger">✘ ${esc(r.portMessage)}</span>`;
+    const authBadge = r.authOk
+      ? `<span class="text-success fw-bold">✔ 인증 성공</span>`
+      : (password
+          ? `<span class="text-danger">✘ ${esc(r.authMessage)}</span>`
+          : `<span class="text-warning">⚠ ${esc(r.authMessage)}</span>`);
+    span.innerHTML = `<div>${portBadge}</div><div>${authBadge}</div>`;
+  } catch(e) {
+    span.innerHTML = `<span class="text-danger">✘ ${esc(e.message)}</span>`;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function resumeSetupFrom(jobType, playbookName, serverId) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById('sec-setup').classList.add('active');
+  document.querySelectorAll('.sidebar .nav-link').forEach(l => l.classList.remove('active'));
+  const setupLink = document.querySelector('.nav-link[onclick*="setup"]');
+  if (setupLink) setupLink.classList.add('active');
+
+  await loadSetupSection();
+
+  // 해당 서버만 체크
+  document.querySelectorAll('#osServerList input[type=checkbox]').forEach(cb => {
+    cb.checked = (cb.value == serverId);
+  });
+
+  // 해당 playbook부터 체크 (통합)
+  let found = false;
+  document.querySelectorAll('#allPlaybooks .pb-item input[type=checkbox]').forEach(cb => {
+    if (cb.value === playbookName) found = true;
+    cb.checked = found;
+  });
+
+  await runSetupAll();
+}
+
+let _setupHistoryPage = 0;
+async function loadSetupHistory(page=0) {
+  _setupHistoryPage = page;
+  const serverId = document.getElementById('setupHistoryServerId').value;
+  if (!serverId) return;
+  try {
+    const jobs = await api('GET',`/setup/history/${serverId}?page=${page}`);
+    const tb = document.getElementById('setupHistoryTbody');
+    tb.innerHTML = jobs.length ? jobs.map(j=>`
+      <tr>
+        <td class="ps-3">${j.id}</td><td><span class="badge bg-secondary">${j.jobType}</span></td>
+        <td>${j.playbookName||'-'}</td><td>${j.serverId||'-'}</td>
+        <td>${badge(j.status)}</td><td>${fmtDate(j.startedAt)}</td><td>${fmtDate(j.finishedAt)}</td>
+        <td class="d-flex gap-1">
+          <button class="btn btn-outline-secondary btn-sm py-0 px-1" onclick="showLogModal(${j.id})" title="로그 보기"><i class="bi bi-terminal"></i></button>
+          ${j.status==='FAIL'&&j.playbookName?`<button class="btn btn-outline-warning btn-sm py-0 px-1" onclick="resumeSetupFrom('${j.jobType}','${j.playbookName}',${j.targetServer?.id||j.serverId})" title="이 playbook부터 재실행"><i class="bi bi-arrow-counterclockwise"></i></button>`:''}
+        </td>
+      </tr>`).join('')
+    : '<tr><td colspan="8" class="text-center py-3 text-muted">이력 없음</td></tr>';
+    renderPager('setupHistoryPager', page, jobs.length, p => loadSetupHistory(p));
+  } catch(e) { toast(e.message,false); }
+}
+
+function renderPager(containerId, page, count, fn) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  const btns = [];
+  if (page > 0) btns.push(`<button class="btn btn-outline-secondary btn-sm py-0" onclick="(${fn})(${page-1})">이전</button>`);
+  btns.push(`<span class="small text-muted align-self-center">${page+1} 페이지</span>`);
+  if (count === 10) btns.push(`<button class="btn btn-outline-secondary btn-sm py-0" onclick="(${fn})(${page+1})">다음</button>`);
+  el.innerHTML = btns.join('');
+}
+
+/* ── Git 저장소 ────────────────────────────────── */
+async function loadGitRepos() {
+  try {
+    const repos = await api('GET','/git/repos');
+    const tb = document.getElementById('gitTbody');
+    tb.innerHTML = repos.length ? repos.map(r=>`
+      <tr>
+        <td class="ps-3">${r.id}</td><td><strong>${esc(r.repoName)}</strong></td>
+        <td class="text-muted small" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.repoUrl)}</td>
+        <td><code>${r.branch}</code></td><td><span class="badge bg-info text-dark">${r.repoType}</span></td>
+        <td><span class="badge bg-secondary">${r.authType}</span></td><td>${fmtDate(r.lastPulledAt)}</td>
+        <td>
+          <button class="btn btn-outline-success btn-sm py-0 px-1" onclick="gitPull(${r.id},'${esc(r.repoName)}')" title="Pull"><i class="bi bi-cloud-download"></i></button>
+          <button class="btn btn-outline-primary btn-sm py-0 px-1 ms-1" onclick="openGitModal(${r.id})" title="수정"><i class="bi bi-pencil"></i></button>
+          <button class="btn btn-outline-danger btn-sm py-0 px-1 ms-1" onclick="deleteGitRepo(${r.id})"><i class="bi bi-trash"></i></button>
+        </td>
+      </tr>`).join('')
+    : '<tr><td colspan="8" class="text-center py-4 text-muted">등록된 저장소 없음</td></tr>';
+  } catch(e) { toast(e.message,false); }
+}
+function toggleGitAuth() {
+  const v = document.getElementById('gitAuth').value;
+  document.getElementById('gitPasswordFields').style.display = v==='PASSWORD'?'':'none';
+  document.getElementById('gitSshFields').style.display = v==='SSH'?'':'none';
+}
+async function openGitModal(id) {
+  ['gitName','gitBranch','gitUrl','gitUsername','gitPassword','gitSshKey','gitLocalPath','gitDesc'].forEach(f=>document.getElementById(f).value='');
+  document.getElementById('gitEditId').value = id||'';
+  document.getElementById('gitAuth').value='PASSWORD'; document.getElementById('gitRepoType').value='RPM';
+  document.getElementById('gitModalTitle').textContent = id ? 'Git 저장소 수정' : 'Git 저장소 등록';
+  if (id) {
+    try {
+      const r = await api('GET','/git/repos/'+id);
+      document.getElementById('gitName').value = r.repoName||'';
+      document.getElementById('gitBranch').value = r.branch||'';
+      document.getElementById('gitUrl').value = r.repoUrl||'';
+      document.getElementById('gitAuth').value = r.authType||'PASSWORD';
+      document.getElementById('gitRepoType').value = r.repoType||'RPM';
+      document.getElementById('gitUsername').value = r.username||'';
+      document.getElementById('gitPassword').value = r.password||'';
+      document.getElementById('gitSshKey').value = r.sshKeyPath||'';
+      document.getElementById('gitLocalPath').value = r.localPath||'';
+      document.getElementById('gitDesc').value = r.description||'';
+    } catch(e) { toast(e.message,false); return; }
+  }
+  toggleGitAuth();
+  new bootstrap.Modal(document.getElementById('gitModal')).show();
+}
+async function saveGitRepo() {
+  const id = document.getElementById('gitEditId').value;
+  const auth = document.getElementById('gitAuth').value;
+  const body = {repoName:document.getElementById('gitName').value, repoUrl:document.getElementById('gitUrl').value, branch:document.getElementById('gitBranch').value, authType:auth, repoType:document.getElementById('gitRepoType').value, localPath:document.getElementById('gitLocalPath').value, description:document.getElementById('gitDesc').value||null};
+  if (auth==='PASSWORD') { body.username=document.getElementById('gitUsername').value||null; body.password=document.getElementById('gitPassword').value||null; }
+  else { body.sshKeyPath=document.getElementById('gitSshKey').value||null; }
+  try {
+    id ? await api('PUT','/git/repos/'+id,body) : await api('POST','/git/repos',body);
+    bootstrap.Modal.getInstance(document.getElementById('gitModal')).hide();
+    toast(id ? '저장소가 수정되었습니다.' : '저장소가 등록되었습니다.');
+    loadGitRepos();
+  } catch(e) { toast(e.message,false); }
+}
+async function gitPull(id, repoName) {
+  try {
+    const jobKey = await api('POST','/git/repos/'+id+'/pull');
+    toast('Git pull이 시작되었습니다.');
+    document.getElementById('gitLogCard').style.display = '';
+    document.getElementById('gitLogCardTitle').textContent = 'Git 실행 로그: ' + (repoName||'');
+    startSse(
+      API+'/git/repos/'+id+'/log-stream?jobKey='+encodeURIComponent(jobKey),
+      'gitLogBox',
+      () => { toast('Git pull 완료!'); loadGitRepos(); }
+    );
+  } catch(e) { toast(e.message,false); }
+}
+async function deleteGitRepo(id) {
+  if (!confirm('삭제하시겠습니까?')) return;
+  try { await api('DELETE','/git/repos/'+id); toast('삭제되었습니다.'); loadGitRepos(); } catch(e) { toast(e.message,false); }
+}
+
+/* ── 패키지 ────────────────────────────────────── */
+let _pkgFiles = [];
+async function loadPackageFiles() {
+  const el = document.getElementById('pkgFileList');
+  el.innerHTML = '<span class="text-muted">로딩 중...</span>';
+  try {
+    _pkgFiles = await api('GET','/packages/files');
+    if (!_pkgFiles.length) { el.innerHTML = '<span class="text-muted">파일 없음 (패키지 경로 확인)</span>'; return; }
+    el.innerHTML = _pkgFiles.map(f=>`
+      <div class="d-flex align-items-center gap-2 py-1 border-bottom">
+        <input class="form-check-input mt-0" type="checkbox" value="${esc(f)}" id="pkgFile_${esc(f)}">
+        <label class="form-check-label small font-monospace" for="pkgFile_${esc(f)}">${esc(f)}</label>
+      </div>`).join('');
+  } catch(e) { el.innerHTML = `<span class="text-danger">${esc(e.message)}</span>`; }
+}
+async function uploadPackageFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    const res = await fetch(API+'/packages/upload', {method:'POST', body:fd});
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message||'업로드 실패');
+    toast('업로드 완료: '+json.data);
+    loadPackageFiles();
+  } catch(e) { toast(e.message,false); }
+  input.value='';
+}
+async function deployPackages() {
+  const fileNames = [...document.querySelectorAll('#pkgFileList input[type=checkbox]:checked')].map(cb=>cb.value);
+  if (!fileNames.length) { toast('배포할 파일을 선택하세요.',false); return; }
+  const serverId = document.getElementById('pkgDeployServerId').value;
+  if (!serverId) { toast('대상 서버를 선택하세요.',false); return; }
+  const remotePath = document.getElementById('pkgDeployRemotePath').value.trim();
+  if (!remotePath) { toast('원격 저장 경로를 입력하세요.',false); return; }
+  const body = {
+    serverId: parseInt(serverId),
+    fileNames, remotePath,
+    sshPassword: document.getElementById('pkgDeployPw').value||null,
+    sshPort: parseInt(document.getElementById('pkgDeployPort').value)||22
+  };
+  try {
+    const jobKey = await api('POST','/packages/deploy', body);
+    toast('패키지 배포가 시작되었습니다.');
+    startSse(API+'/packages/deploy/log-stream?jobKey='+encodeURIComponent(jobKey), 'pkgDeployLogBox',
+      () => toast('패키지 배포 완료!'));
+  } catch(e) { toast(e.message,false); }
+}
+
+async function loadPackageSection() {
+  await loadServers();
+  const sel = document.getElementById('pkgDeployServerId');
+  if (sel) sel.innerHTML = _servers.map(s=>`<option value="${s.id}">[${s.id}] ${esc(s.serverName)} (${s.ipAddress})</option>`).join('');
+  loadPackageFiles();
+  loadPackages();
+}
+
+async function loadPackages() {
+  try {
+    const pkgs = await api('GET','/packages');
+    const tb = document.getElementById('pkgTbody');
+    tb.innerHTML = pkgs.length ? pkgs.map(p=>`
+      <tr><td class="ps-3">${p.id}</td><td><strong>${esc(p.packageName)}</strong></td>
+      <td><span class="badge bg-primary">${p.version}</span></td><td>${p.targetOs}</td>
+      <td class="text-muted small">${esc(p.localPath)}</td><td class="text-muted small">${esc(p.gitPath)||'-'}</td>
+      <td>
+        <button class="btn btn-outline-primary btn-sm py-0 px-1" onclick="openPkgModal(${p.id})"><i class="bi bi-pencil"></i></button>
+        <button class="btn btn-outline-danger btn-sm py-0 px-1 ms-1" onclick="deletePkg(${p.id})"><i class="bi bi-trash"></i></button>
+      </td></tr>`).join('')
+    : '<tr><td colspan="7" class="text-center py-4 text-muted">등록된 패키지 없음</td></tr>';
+  } catch(e) { toast(e.message,false); }
+}
+async function openPkgModal(id) {
+  document.getElementById('pkgEditId').value = id||'';
+  document.getElementById('pkgModalTitle').textContent = id?'패키지 수정':'패키지 등록';
+  ['pkgName','pkgVersion','pkgLocalPath','pkgGitRepoId','pkgGitPath','pkgDesc'].forEach(f=>document.getElementById(f).value='');
+  document.getElementById('pkgOs').value='CENTOS';
+  if (id) { try { const p=await api('GET','/packages/'+id); document.getElementById('pkgName').value=p.packageName; document.getElementById('pkgVersion').value=p.version; document.getElementById('pkgLocalPath').value=p.localPath; document.getElementById('pkgOs').value=p.targetOs; document.getElementById('pkgGitRepoId').value=p.gitRepoId||''; document.getElementById('pkgGitPath').value=p.gitPath||''; document.getElementById('pkgDesc').value=p.description||''; } catch(e) { toast(e.message,false); return; } }
+  new bootstrap.Modal(document.getElementById('pkgModal')).show();
+}
+async function savePkg() {
+  const id=document.getElementById('pkgEditId').value;
+  const gri=document.getElementById('pkgGitRepoId').value;
+  const body={packageName:document.getElementById('pkgName').value, version:document.getElementById('pkgVersion').value, localPath:document.getElementById('pkgLocalPath').value, targetOs:document.getElementById('pkgOs').value, gitRepoId:gri?parseInt(gri):null, gitPath:document.getElementById('pkgGitPath').value||null, description:document.getElementById('pkgDesc').value||null};
+  try { id?await api('PUT','/packages/'+id,body):await api('POST','/packages',body); bootstrap.Modal.getInstance(document.getElementById('pkgModal')).hide(); toast(id?'수정되었습니다.':'등록되었습니다.'); loadPackages(); } catch(e) { toast(e.message,false); }
+}
+async function deletePkg(id) { if (!confirm('삭제하시겠습니까?')) return; try { await api('DELETE','/packages/'+id); toast('삭제되었습니다.'); loadPackages(); } catch(e) { toast(e.message,false); } }
+
+/* ── 스크립트 ──────────────────────────────────── */
+async function loadScriptFiles() {
+  const el = document.getElementById('scriptFileList');
+  el.innerHTML = '<span class="text-muted">로딩 중...</span>';
+  try {
+    const files = await api('GET','/scripts/files');
+    if (!files.length) { el.innerHTML = '<span class="text-muted">파일 없음 (스크립트 경로 확인)</span>'; return; }
+    el.innerHTML = files.map(f=>`
+      <div class="d-flex align-items-center gap-2 py-1 border-bottom">
+        <i class="bi bi-file-code text-success"></i>
+        <span class="small font-monospace">${esc(f)}</span>
+      </div>`).join('');
+  } catch(e) { el.innerHTML = `<span class="text-danger">${esc(e.message)}</span>`; }
+}
+async function uploadScriptFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    const res = await fetch(API+'/scripts/upload', {method:'POST', body:fd});
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message||'업로드 실패');
+    toast('업로드 완료: '+json.data);
+    loadScriptFiles();
+  } catch(e) { toast(e.message,false); }
+  input.value='';
+}
+
+async function loadScriptSection() {
+  await loadServers();
+  loadScriptFiles();
+  await loadScripts();
+  // 실행 패널 초기화
+  const sel = document.getElementById('runScriptId');
+  sel.innerHTML = _scripts.map(s=>`<option value="${s.id}">[${s.id}] ${esc(s.scriptName)}</option>`).join('');
+  const srvDiv = document.getElementById('runScriptServers');
+  srvDiv.innerHTML = _servers.map(s=>`
+    <div class="form-check">
+      <input class="form-check-input" type="checkbox" value="${s.id}" id="runSrv_${s.id}">
+      <label class="form-check-label small" for="runSrv_${s.id}">${esc(s.serverName)} (${s.ipAddress})</label>
+    </div>`).join('') || '<span class="text-muted small">등록된 서버 없음</span>';
+  const hSel = document.getElementById('runScriptHistoryServerId');
+  hSel.innerHTML = _servers.map(s=>`<option value="${s.id}">[${s.id}] ${esc(s.serverName)}</option>`).join('');
+}
+
+async function runScriptBatch() {
+  const scriptId = document.getElementById('runScriptId').value;
+  if (!scriptId) { toast('스크립트를 선택하세요.', false); return; }
+  const serverIds = [...document.querySelectorAll('#runScriptServers input:checked')].map(cb=>parseInt(cb.value));
+  if (!serverIds.length) { toast('서버를 최소 1개 이상 선택하세요.', false); return; }
+  const scriptArgs = document.getElementById('runScriptArgs').value.trim() || null;
+  try {
+    await api('POST', '/validation/run/batch', {serverIds, scriptId: parseInt(scriptId), scriptArgs});
+    toast('실행이 시작되었습니다. (서버 ' + serverIds.length + '대)');
+    setTimeout(() => loadScriptRunHistory(0), 1500);
+  } catch(e) { toast(e.message, false); }
+}
+
+async function loadScriptRunHistory(page=0) {
+  const serverId = document.getElementById('runScriptHistoryServerId').value;
+  if (!serverId) return;
+  try {
+    const jobs = await api('GET', `/validation/history/${serverId}?page=${page}`);
+    document.getElementById('scriptRunHistoryTbody').innerHTML = jobs.length
+      ? jobs.map(j=>`<tr>
+          <td class="ps-3">${j.id}</td>
+          <td>${esc(j.playbookName||'-')}</td>
+          <td><span class="badge ${j.status==='SUCCESS'?'bg-success':j.status==='FAIL'?'bg-danger':'bg-secondary'}">${j.status}</span></td>
+          <td>${fmtDate(j.startedAt)}</td>
+          <td><button class="btn btn-outline-secondary btn-sm py-0 px-1" onclick="showLogModal(${j.id})"><i class="bi bi-terminal"></i></button></td>
+        </tr>`).join('')
+      : '<tr><td colspan="5" class="text-center py-3 text-muted">이력 없음</td></tr>';
+    renderPager('scriptRunHistoryPager', page, jobs.length, p=>loadScriptRunHistory(p));
+  } catch(e) { toast(e.message, false); }
+}
+
+async function loadScripts() {
+  try {
+    // 파일시스템 .sh 파일을 DB에 자동 동기화
+    try { _scripts = await api('POST','/scripts/sync'); } catch(e) {}
+    _scripts = await api('GET','/scripts');
+    const tb = document.getElementById('scriptTbody');
+    tb.innerHTML = _scripts.length ? _scripts.map(s=>`
+      <tr><td class="ps-3">${s.id}</td><td><strong>${esc(s.scriptName)}</strong></td>
+      <td><span class="badge bg-warning text-dark">${s.scriptType}</span></td>
+      <td class="text-muted small">${esc(s.localPath)}</td><td class="text-muted small">${esc(s.gitPath)||'-'}</td>
+      <td>
+        <button class="btn btn-outline-primary btn-sm py-0 px-1" onclick="openScriptModal(${s.id})"><i class="bi bi-pencil"></i></button>
+        <button class="btn btn-outline-danger btn-sm py-0 px-1 ms-1" onclick="deleteScript(${s.id})"><i class="bi bi-trash"></i></button>
+      </td></tr>`).join('')
+    : '<tr><td colspan="6" class="text-center py-4 text-muted">등록된 스크립트 없음</td></tr>';
+  } catch(e) { toast(e.message,false); }
+}
+async function openScriptModal(id) {
+  document.getElementById('scriptEditId').value=id||'';
+  document.getElementById('scriptModalTitle').textContent=id?'스크립트 수정':'스크립트 등록';
+  ['scriptName','scriptLocalPath','scriptGitRepoId','scriptGitPath','scriptDesc'].forEach(f=>document.getElementById(f).value='');
+  document.getElementById('scriptType').value='OS_AUDIT';
+  if (id) { try { const s=await api('GET','/scripts/'+id); document.getElementById('scriptName').value=s.scriptName; document.getElementById('scriptLocalPath').value=s.localPath; document.getElementById('scriptType').value=s.scriptType; document.getElementById('scriptGitRepoId').value=s.gitRepoId||''; document.getElementById('scriptGitPath').value=s.gitPath||''; document.getElementById('scriptDesc').value=s.description||''; } catch(e) { toast(e.message,false); return; } }
+  new bootstrap.Modal(document.getElementById('scriptModal')).show();
+}
+async function saveScript() {
+  const id=document.getElementById('scriptEditId').value;
+  const gri=document.getElementById('scriptGitRepoId').value;
+  const body={scriptName:document.getElementById('scriptName').value, localPath:document.getElementById('scriptLocalPath').value, scriptType:document.getElementById('scriptType').value, gitRepoId:gri?parseInt(gri):null, gitPath:document.getElementById('scriptGitPath').value||null, description:document.getElementById('scriptDesc').value||null};
+  try { id?await api('PUT','/scripts/'+id,body):await api('POST','/scripts',body); bootstrap.Modal.getInstance(document.getElementById('scriptModal')).hide(); toast(id?'수정되었습니다.':'등록되었습니다.'); loadScripts(); } catch(e) { toast(e.message,false); }
+}
+async function deleteScript(id) { if (!confirm('삭제하시겠습니까?')) return; try { await api('DELETE','/scripts/'+id); toast('삭제되었습니다.'); loadScripts(); } catch(e) { toast(e.message,false); } }
+
+/* ── Validation ────────────────────────────────── */
+async function loadValidationSection() {
+  await loadServers();
+  await loadScripts();
+  const vs = document.getElementById('valServerId');
+  vs.innerHTML = _servers.map(s=>`<option value="${s.id}">[${s.id}] ${esc(s.serverName)} (${s.ipAddress})</option>`).join('');
+  const vsc = document.getElementById('valScriptId');
+  vsc.innerHTML = _scripts.map(s=>`<option value="${s.id}">[${s.id}] ${esc(s.scriptName)} (${s.scriptType})</option>`).join('');
+  const vh = document.getElementById('valHistoryServerId');
+  vh.innerHTML = _servers.map(s=>`<option value="${s.id}">[${s.id}] ${esc(s.serverName)}</option>`).join('');
+}
+async function runValidation() {
+  const serverId=document.getElementById('valServerId').value;
+  const scriptId=document.getElementById('valScriptId').value;
+  if (!serverId||!scriptId) { toast('서버와 스크립트를 선택하세요.',false); return; }
+  try { await api('POST','/validation/run/'+serverId,{scriptId:parseInt(scriptId)}); toast('Validation이 시작되었습니다.'); } catch(e) { toast(e.message,false); }
+}
+async function loadValidationHistory(page=0) {
+  const serverId=document.getElementById('valHistoryServerId').value;
+  if (!serverId) return;
+  try {
+    const jobs=await api('GET',`/validation/history/${serverId}?page=${page}`);
+    const tb=document.getElementById('valHistoryTbody');
+    tb.innerHTML = jobs.length ? jobs.map(j=>`
+      <tr><td class="ps-3">${j.id}</td><td>${esc(j.playbookName)||'-'}</td><td>${badge(j.status)}</td>
+      <td>${fmtDate(j.startedAt)}</td>
+      <td><button class="btn btn-outline-secondary btn-sm py-0 px-1" onclick="showLogModal(${j.id})"><i class="bi bi-terminal"></i></button></td>
+      </tr>`).join('')
+    : '<tr><td colspan="5" class="text-center py-3 text-muted">이력 없음</td></tr>';
+    renderPager('valHistoryPager', page, jobs.length, p=>loadValidationHistory(p));
+  } catch(e) { toast(e.message,false); }
+}
+async function showLogModal(jobId) {
+  try {
+    let job;
+    try { job=await api('GET','/setup/status/'+jobId); } catch { job=await api('GET','/validation/result/'+jobId); }
+    document.getElementById('logModalTitle').textContent=`#${job.id} [${job.status}]`;
+    document.getElementById('logStdout').textContent=job.stdOut||'(없음)';
+    document.getElementById('logStderr').textContent=job.stdErr||'(없음)';
+    new bootstrap.Modal(document.getElementById('logModal')).show();
+  } catch(e) { toast(e.message,false); }
+}
+
+/* ── 파이프라인 ────────────────────────────────── */
+async function loadPipelines() {
+  try {
+    const list = await api('GET','/pipelines');
+    const tb = document.getElementById('pipelineTbody');
+    tb.innerHTML = list.length ? list.map(p=>`
+      <tr>
+        <td class="ps-3">${p.id}</td><td><strong>${esc(p.name)}</strong><div class="text-muted small">${esc(p.description)||''}</div></td>
+        <td><span class="badge ${p.executionMode==='MANUAL'?'bg-warning text-dark':'bg-primary'}">${p.executionMode}</span></td>
+        <td>${p.steps?p.steps.length:0}단계</td>
+        <td>
+          <button class="btn btn-success btn-sm py-0 px-1" onclick="runPipeline(${p.id})" title="실행"><i class="bi bi-play-fill"></i></button>
+          <button class="btn btn-outline-secondary btn-sm py-0 px-1 ms-1" onclick="viewPipelineRuns(${p.id})" title="이력"><i class="bi bi-clock-history"></i></button>
+          <button class="btn btn-outline-primary btn-sm py-0 px-1 ms-1" onclick="openPipelineModal(${p.id})" title="수정"><i class="bi bi-pencil"></i></button>
+          <button class="btn btn-outline-danger btn-sm py-0 px-1 ms-1" onclick="deletePipeline(${p.id})"><i class="bi bi-trash"></i></button>
+        </td>
+      </tr>`).join('')
+    : '<tr><td colspan="5" class="text-center py-4 text-muted">등록된 파이프라인 없음</td></tr>';
+  } catch(e) { toast(e.message,false); }
+}
+
+function startStatusPolling(pipelineId, runId) {
+  if (_statusPoller) clearInterval(_statusPoller);
+  _statusPoller = setInterval(async () => {
+    try {
+      const run = await api('GET', '/pipelines/runs/' + runId);
+      updateRunHeader(run);
+      if (run.status === 'WAITING_APPROVAL') {
+        document.getElementById('approvalBanner').classList.remove('d-none');
+      } else {
+        document.getElementById('approvalBanner').classList.add('d-none');
+      }
+      if (['SUCCESS','FAIL','CANCELLED'].includes(run.status)) {
+        clearInterval(_statusPoller); _statusPoller = null;
+        loadPipelineRuns(pipelineId, 0);
+        loadServers();
+      }
+    } catch(e) { clearInterval(_statusPoller); _statusPoller = null; }
+  }, 2000);
+}
+
+function updateRunHeader(run) {
+  const statusColors = {RUNNING:'warning',WAITING_APPROVAL:'info',SUCCESS:'success',FAIL:'danger',CANCELLED:'secondary'};
+  const c = statusColors[run.status] || 'secondary';
+  document.getElementById('pipelineRunHeader').innerHTML =
+    '실행 모니터 — Run #' + run.id +
+    ' <span class="badge bg-' + c + ' ms-2">' + run.status + '</span>' +
+    (run.currentStepOrder ? ' <span class="text-muted small">Step ' + run.currentStepOrder + '</span>' : '');
+}
+
+let _pendingRunPipelineId = null;
+async function runPipeline(id) {
+  // OS_SETUP 단계가 있는 서버 목록 수집
+  try {
+    const pipeline = await api('GET', '/pipelines/'+id);
+    const osServers = [];
+    (pipeline.steps||[]).forEach(step => {
+      if (step.stepType === 'OS_SETUP') {
+        (step.serverIdList||[]).forEach(sid => {
+          const s = _servers.find(x=>x.id===sid);
+          if (s && !osServers.find(x=>x.id===sid)) osServers.push(s);
+        });
+      }
+    });
+    if (osServers.length > 0) {
+      _pendingRunPipelineId = id;
+      document.getElementById('pipelineRunPwList').innerHTML = osServers.map(s=>`
+        <div class="d-flex align-items-center gap-2 mb-2">
+          <span class="small" style="min-width:200px">[${s.id}] ${esc(s.serverName)} (${s.ipAddress})</span>
+          <input type="password" class="form-control form-control-sm" id="plPw_${s.id}" placeholder="root 패스워드" style="max-width:160px">
+        </div>`).join('');
+      new bootstrap.Modal(document.getElementById('pipelineRunModal')).show();
+      return;
+    }
+  } catch(e) {}
+  await doRunPipeline(id, {});
+}
+
+async function confirmRunPipeline() {
+  bootstrap.Modal.getInstance(document.getElementById('pipelineRunModal')).hide();
+  const sshPasswords = {};
+  document.querySelectorAll('[id^="plPw_"]').forEach(el => {
+    if (el.value) sshPasswords[el.id.replace('plPw_','')] = el.value;
+  });
+  await doRunPipeline(_pendingRunPipelineId, sshPasswords);
+}
+
+async function doRunPipeline(id, sshPasswords) {
+  try {
+    const run = await api('POST','/pipelines/'+id+'/run', {sshPasswords});
+    _currentPipelineId = id;
+    _currentRunId = run.id;
+    document.getElementById('pipelineRunCard').style.display='';
+    updateRunHeader(run);
+    document.getElementById('approvalBanner').classList.add('d-none');
+    startSse(API+'/pipelines/runs/'+run.id+'/log-stream', 'pipelineLogBox', () => {
+      toast('파이프라인 완료!');
+    });
+    startStatusPolling(id, run.id);
+    toast('파이프라인 실행이 시작되었습니다.');
+    loadPipelineRuns(id, 0);
+  } catch(e) { toast(e.message,false); }
+}
+
+async function pipelineApprove(approved) {
+  if (!_currentRunId) return;
+  try {
+    await api('POST','/pipelines/runs/'+_currentRunId+'/approve',{approved});
+    document.getElementById('approvalBanner').classList.add('d-none');
+    toast(approved?'승인하여 다음 단계로 진행합니다.':'파이프라인이 취소되었습니다.',approved);
+  } catch(e) { toast(e.message,false); }
+}
+
+async function viewPipelineRuns(id) {
+  _currentPipelineId = id;
+  document.getElementById('pipelineRunCard').style.display='';
+  await loadPipelineRuns(id, 0);
+  // 가장 최근 실행이 진행 중이면 폴링 시작
+  try {
+    const runs = await api('GET', '/pipelines/'+id+'/runs?page=0');
+    if (runs.length > 0) {
+      const latest = runs[0];
+      _currentRunId = latest.id;
+      updateRunHeader(latest);
+      if (['RUNNING','WAITING_APPROVAL'].includes(latest.status)) {
+        if (latest.status === 'WAITING_APPROVAL') document.getElementById('approvalBanner').classList.remove('d-none');
+        startStatusPolling(id, latest.id);
+      }
+    }
+  } catch(e) {}
+}
+
+async function loadPipelineRuns(id, page=0) {
+  try {
+    const runs = await api('GET',`/pipelines/${id}/runs?page=${page}`);
+    const tb = document.getElementById('pipelineRunTbody');
+    tb.innerHTML = runs.length ? runs.map(r=>`
+      <tr>
+        <td class="ps-3">${r.id}</td><td>${badge(r.status)}</td>
+        <td>${r.currentStepOrder!=null?'Step '+r.currentStepOrder:'-'}</td>
+        <td>${fmtDate(r.startedAt)}</td><td>${fmtDate(r.finishedAt)}</td>
+      </tr>`).join('')
+    : '<tr><td colspan="5" class="text-center py-3 text-muted">실행 이력 없음</td></tr>';
+    renderPager('pipelineRunPager', page, runs.length, p=>loadPipelineRuns(id,p));
+  } catch(e) { toast(e.message,false); }
+}
+
+/* 파이프라인 편집 모달 */
+let _stepCount = 0;
+function goToServerReg() {
+  bootstrap.Modal.getInstance(document.getElementById('noServerModal')).hide();
+  nav('servers', document.querySelector('.nav-link[onclick*="servers"]'));
+  setTimeout(() => openServerModal(), 300);
+}
+
+async function openPipelineModal(id) {
+  await loadServers(); await loadScripts();
+  if (!_servers.length) {
+    new bootstrap.Modal(document.getElementById('noServerModal')).show();
+    return;
+  }
+  if (!_allPb.length)   { try { _allPb=await api('GET','/setup/playbooks/all'); } catch(e){} }
+  if (!_pkgFiles.length){ try { _pkgFiles=await api('GET','/packages/files');   } catch(e){} }
+  _stepCount = 0;
+  document.getElementById('pipelineEditId').value = id||'';
+  document.getElementById('pipelineModalTitle').textContent = id?'파이프라인 수정':'파이프라인 생성';
+  document.getElementById('plName').value=''; document.getElementById('plDesc').value=''; document.getElementById('plMode').value='AUTO';
+  document.getElementById('stepContainer').innerHTML='';
+  if (id) {
+    try {
+      const p = await api('GET','/pipelines/'+id);
+      document.getElementById('plName').value=p.name; document.getElementById('plDesc').value=p.description||''; document.getElementById('plMode').value=p.executionMode;
+      (p.steps||[]).forEach(s=>addStep(s));
+    } catch(e) { toast(e.message,false); return; }
+  }
+  new bootstrap.Modal(document.getElementById('pipelineModal')).show();
+}
+
+function addStep(data) {
+  const idx = ++_stepCount;
+  const serverChecks = _servers.map(s=>`<div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" value="${s.id}" id="step${idx}_sv_${s.id}" ${data&&(data.serverIdList||[]).includes(s.id)?'checked':''}><label class="form-check-label small" for="step${idx}_sv_${s.id}">${esc(s.serverName)}</label></div>`).join('');
+  const html = `
+  <div class="step-card" id="step-card-${idx}" draggable="true">
+    <div class="step-header">
+      <span class="step-drag-handle" title="드래그하여 순서 변경"><i class="bi bi-grip-vertical"></i></span>
+      <span class="badge bg-secondary step-order-badge">#${idx}</span>
+      <select class="form-select form-select-sm" style="width:160px;" id="step${idx}_type" onchange="onStepTypeChange(${idx})">
+        <option value="OS_SETUP" ${data&&data.stepType==='OS_SETUP'?'selected':''}>OS 셋업</option>
+        <option value="PKG_SETUP" ${data&&data.stepType==='PKG_SETUP'?'selected':''}>PKG 셋업</option>
+        <option value="VALIDATION" ${data&&data.stepType==='VALIDATION'?'selected':''}>Validation</option>
+      </select>
+      <button class="btn btn-outline-danger btn-sm py-0 ms-auto" onclick="removeStep(${idx})"><i class="bi bi-trash"></i></button>
+    </div>
+    <div class="mb-2"><label class="form-label small fw-semibold">대상 서버</label><div>${serverChecks||'<span class="text-muted small">등록된 서버 없음</span>'}</div></div>
+    <div id="step${idx}_extra"></div>
+  </div>`;
+  document.getElementById('stepContainer').insertAdjacentHTML('beforeend', html);
+  initStepDrag(document.getElementById('step-card-'+idx));
+  onStepTypeChange(idx, data);
+}
+
+function onStepTypeChange(idx, data) {
+  const type = document.getElementById('step'+idx+'_type').value;
+  const div = document.getElementById('step'+idx+'_extra');
+  if (type==='OS_SETUP') {
+    div.innerHTML = `
+      <div class="row g-2 mb-2">
+        <div class="col-4"><label class="form-label small">NTP 서버 IP</label><input type="text" class="form-control form-control-sm" id="step${idx}_ntp" value="${data&&data.ntpServer||''}"></div>
+        <div class="col-4"><label class="form-label small">MariaDB 비밀번호</label><input type="text" class="form-control form-control-sm" id="step${idx}_mpw" value="${data&&data.mariaDbPassword||''}"></div>
+        <div class="col-4"><label class="form-label small">DB 이름</label><input type="text" class="form-control form-control-sm" id="step${idx}_dbn" value="${data&&data.databaseName||''}"></div>
+      </div>
+      <div><label class="form-label small">Playbook 선택 <button class="btn btn-link btn-sm py-0" onclick="stepCheckAll(${idx},'all',true)">전체</button><button class="btn btn-link btn-sm py-0" onclick="stepCheckAll(${idx},'all',false)">해제</button></label>
+      <div class="playbook-check">${_allPb.map((pb,i)=>`<div class="form-check"><input class="form-check-input" type="checkbox" value="${pb}" id="step${idx}_allpb_${i}" ${!data||!data.selectedPlaybooks||(data.selectedPlaybookList||[]).includes(pb)?'checked':''}><label class="form-check-label small">${pb}</label></div>`).join('')}</div></div>`;
+  } else if (type==='PKG_SETUP') {
+    div.innerHTML = `
+      <div class="mb-2"><label class="form-label small">배포 경로 <span class="text-muted fw-normal">(기본: /tmp)</span></label><input type="text" class="form-control form-control-sm" id="step${idx}_rpath" value="${data&&data.remoteDeployPath||''}" placeholder="/tmp"></div>
+      <div><label class="form-label small">패키지 선택 <button class="btn btn-link btn-sm py-0" onclick="stepCheckAll(${idx},'pkg',true)">전체</button><button class="btn btn-link btn-sm py-0" onclick="stepCheckAll(${idx},'pkg',false)">해제</button></label>
+      <div class="playbook-check">${_pkgFiles.length ? _pkgFiles.map((f,i)=>`<div class="form-check"><input class="form-check-input" type="checkbox" value="${f}" id="step${idx}_pkgpb_${i}" ${!data||!data.selectedPackages||(data.selectedPackageList||[]).includes(f)?'checked':''}><label class="form-check-label small">${f}</label></div>`).join('') : '<span class="text-muted small">패키지 파일 없음</span>'}</div></div>`;
+  } else {
+    div.innerHTML = `
+      <div class="mb-2"><label class="form-label small">스크립트</label><select class="form-select form-select-sm" id="step${idx}_script">${_scripts.map(s=>`<option value="${s.id}" ${data&&data.scriptId==s.id?'selected':''}>${esc(s.scriptName)}</option>`).join('')}</select></div>
+      <div><label class="form-label small">실행 인자 <span class="text-muted fw-normal">(선택, 예: SERVER_01 또는 --option value)</span></label><input type="text" class="form-control form-control-sm" id="step${idx}_args" value="${data&&data.scriptArgs?esc(data.scriptArgs):''}" placeholder="인자 없으면 비워두세요"></div>`;
+  }
+}
+
+function stepCheckAll(idx, kind, checked) {
+  const prefix = `step${idx}_${kind}pb_`;
+  document.querySelectorAll(`[id^="${prefix}"]`).forEach(cb=>cb.checked=checked);
+}
+function removeStep(idx) { document.getElementById('step-card-'+idx).remove(); updateStepBadges(); }
+
+let _dragSrc = null;
+function initStepDrag(card) {
+  card.addEventListener('dragstart', e => {
+    _dragSrc = card;
+    card.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+  });
+  card.addEventListener('dragend', () => {
+    card.classList.remove('dragging');
+    document.querySelectorAll('.step-card').forEach(c => c.classList.remove('drag-over'));
+    updateStepBadges();
+  });
+  card.addEventListener('dragover', e => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (card !== _dragSrc) card.classList.add('drag-over');
+  });
+  card.addEventListener('dragleave', () => card.classList.remove('drag-over'));
+  card.addEventListener('drop', e => {
+    e.preventDefault();
+    card.classList.remove('drag-over');
+    if (!_dragSrc || _dragSrc === card) return;
+    const container = document.getElementById('stepContainer');
+    const cards = [...container.querySelectorAll('.step-card')];
+    const srcIdx = cards.indexOf(_dragSrc);
+    const dstIdx = cards.indexOf(card);
+    if (srcIdx < dstIdx) container.insertBefore(_dragSrc, card.nextSibling);
+    else                  container.insertBefore(_dragSrc, card);
+    updateStepBadges();
+  });
+}
+function updateStepBadges() {
+  document.querySelectorAll('#stepContainer .step-card').forEach((card, i) => {
+    const badge = card.querySelector('.step-order-badge');
+    if (badge) badge.textContent = '#' + (i + 1);
+  });
+}
+
+async function savePipeline() {
+  const id = document.getElementById('pipelineEditId').value;
+  const steps = [];
+  let order = 1;
+  let validationError = null;
+  document.querySelectorAll('[id^="step-card-"]').forEach(card => {
+    if (validationError) return;
+    const idx = card.id.replace('step-card-','');
+    const type = document.getElementById('step'+idx+'_type').value;
+    const serverIds = [...card.querySelectorAll('[id^="step'+idx+'_sv_"]:checked')].map(cb=>parseInt(cb.value));
+    if (!serverIds.length) { validationError = `단계 ${order}: 서버를 최소 1개 이상 선택해야 합니다.`; return; }
+    const step = {stepOrder:order++, stepType:type, serverIds};
+    if (type==='OS_SETUP') {
+      step.ntpServer = document.getElementById('step'+idx+'_ntp').value||null;
+      step.mariaDbPassword = document.getElementById('step'+idx+'_mpw').value||null;
+      step.databaseName = document.getElementById('step'+idx+'_dbn').value||null;
+      step.selectedPlaybooks = [...document.querySelectorAll(`[id^="step${idx}_allpb_"]:checked`)].map(cb=>cb.value);
+    } else if (type==='PKG_SETUP') {
+      step.remoteDeployPath = document.getElementById('step'+idx+'_rpath').value||null;
+      step.selectedPackages = [...document.querySelectorAll(`[id^="step${idx}_pkgpb_"]:checked`)].map(cb=>cb.value);
+    } else {
+      const sc = document.getElementById('step'+idx+'_script');
+      step.scriptId = sc ? parseInt(sc.value) : null;
+      const argsEl = document.getElementById('step'+idx+'_args');
+      step.scriptArgs = argsEl && argsEl.value.trim() ? argsEl.value.trim() : null;
+    }
+    steps.push(step);
+  });
+  if (validationError) { toast(validationError, false); return; }
+  const body = {name:document.getElementById('plName').value, description:document.getElementById('plDesc').value||null, executionMode:document.getElementById('plMode').value, steps};
+  try {
+    id ? await api('PUT','/pipelines/'+id,body) : await api('POST','/pipelines',body);
+    bootstrap.Modal.getInstance(document.getElementById('pipelineModal')).hide();
+    toast(id?'파이프라인이 수정되었습니다.':'파이프라인이 생성되었습니다.');
+    loadPipelines();
+  } catch(e) { toast(e.message,false); }
+}
+
+async function deletePipeline(id) {
+  if (!confirm('파이프라인을 삭제하시겠습니까?')) return;
+  try { await api('DELETE','/pipelines/'+id); toast('삭제되었습니다.'); loadPipelines(); } catch(e) { toast(e.message,false); }
+}
+
+/* ── 시스템 설정 ───────────────────────────────── */
+const CONFIG_LABELS = {'ansible.playbook-dir':'Ansible Playbook 디렉토리','ansible.inventory':'Ansible Inventory 파일 경로','script.local-base-dir':'Validation 스크립트 저장 경로','package.local-base-dir':'RPM 패키지 저장 경로','git.local-base-dir':'Git 저장소 로컬 기본 경로'};
+let _configData = [];
+/* ── 결과 보고서 ──────────────────────────────── */
+const PLAYBOOK_DESC = {
+  '0_auto_pass.yml':'SSH 키 교환 / SELinux 비활성화','1_PAM_limits.yml':'PAM limits 설정',
+  '2_systemctl_stop.yml':'불필요 서비스 중지','3_sysctl.yml':'커널 파라미터 튜닝',
+  '4_ntp.yml':'NTP 설치 및 설정','5_visudo_vcs.yml':'vcs sudo 권한',
+  '6_RMQ_vcs.yml':'RabbitMQ 설치','7_openjdk.yml':'OpenJDK 1.8 설치',
+  '8-1_mariaDB.yml':'MariaDB 설치','8-2_mariaDB_chown.yml':'MariaDB 권한 설정',
+  '9-1_group_vcs.yml':'vcs 계정/그룹 생성','9-2_chmod_vcs.yml':'vcs 디렉토리 권한',
+  '10-1_group_vcweb.yml':'vcweb 계정/그룹 생성','10-2_chmod_vcweb.yml':'vcweb 디렉토리 권한',
+  '11_vcs_dic.yml':'VCS 패키지 배포/설치','12_Cron_root.yml':'헬스체크 Cron 등록',
+  '13_service_start.yml':'서비스 init.d 등록','14_ramdisk.yml':'Ramdisk 마운트',
+  '15_ldconf.yml':'ld.so 설정','15_rclocal.yml':'rc.local 설정','16_watermark.yml':'Watermark 복사'
+};
+let _reportData = null;
+
+async function loadReportSection() {
+  await loadServers();
+  const sel = document.getElementById('reportServerId');
+  sel.innerHTML = _servers.map(s=>`<option value="${s.id}">[${s.id}] ${esc(s.serverName)} (${s.ipAddress})</option>`).join('');
+  // 탭 진입 시 이전 결과 숨김
+  document.getElementById('reportContent').classList.add('d-none');
+  document.getElementById('reportEmpty').style.display = '';
+  document.getElementById('reportDownloadBtn').style.display = 'none';
+  document.getElementById('reportHtmlBtns').style.display = 'none';
+  _reportData = null;
+}
+
+async function generateReport() {
+  const serverId = document.getElementById('reportServerId').value;
+  if (!serverId) { toast('서버를 선택하세요.', false); return; }
+  try {
+    _reportData = await api('GET', '/report/' + serverId);
+    renderReport(_reportData);
+  } catch(e) { toast(e.message, false); }
+}
+
+function renderReport(r) {
+  document.getElementById('reportContent').classList.remove('d-none');
+  document.getElementById('reportEmpty').style.display = 'none';
+  document.getElementById('reportDownloadBtn').style.display = '';
+  document.getElementById('reportHtmlBtns').style.display = '';
+  document.getElementById('reportMeta').innerHTML =
+    `<b>서버:</b> ${esc(r.serverName)} (${esc(r.ipAddress)}) &nbsp;|&nbsp; <b>생성:</b> ${fmtDate(r.generatedAt)}`;
+
+  // OS / PKG 셋업 테이블
+  document.getElementById('reportOsTbody').innerHTML  = renderSetupRows(r.osSetup  || []);
+  document.getElementById('reportPkgTbody').innerHTML = renderSetupRows(r.pkgSetup || []);
+
+  // Validation 공통 렌더 헬퍼
+  const val = r.validation || {};
+  const NO_HISTORY = '<div class="text-center text-muted py-3 small">이력 없음</div>';
+
+  function renderValCard(cardId, bodyId, data) {
+    document.getElementById(cardId).style.display = '';
+    if (data && data.items && data.items.length) {
+      const stats = {OK:0, WARN:0, FAIL:0};
+      data.items.forEach(i => { if (stats[i.status] !== undefined) stats[i.status]++; });
+      document.getElementById(bodyId).innerHTML = `
+        <div class="p-2 border-bottom small text-muted">
+          실행: ${fmtDate(data.executedAt)} &nbsp;|&nbsp;
+          <span class="text-success">OK: ${stats.OK}</span> &nbsp;
+          <span class="text-warning">WARN: ${stats.WARN}</span> &nbsp;
+          <span class="text-danger">FAIL: ${stats.FAIL}</span>
+        </div>
+        <table class="table table-sm mb-0">
+          <thead class="table-light"><tr><th style="width:80px">상태</th><th>항목</th></tr></thead>
+          <tbody>${data.items.map(i=>`<tr><td>${badge(i.status)}</td><td class="small">${esc(i.detail)}</td></tr>`).join('')}</tbody>
+        </table>`;
+    } else {
+      document.getElementById(bodyId).innerHTML = NO_HISTORY;
+    }
+  }
+  renderValCard('reportValCard', 'reportValBody', val.vcsVerify);
+
+  // VCS Link - 원문 텍스트 출력
+  const vcsLink = val.vcsLink;
+  document.getElementById('reportVcsLinkCard').style.display = '';
+  if (vcsLink && vcsLink.rawOutput) {
+    document.getElementById('reportVcsLinkBody').innerHTML = `
+      <div class="p-2 border-bottom small text-muted">실행: ${fmtDate(vcsLink.executedAt)}</div>
+      <pre class="p-3 mb-0 small" style="white-space:pre-wrap;word-break:break-all;">${esc(vcsLink.rawOutput)}</pre>`;
+  } else {
+    document.getElementById('reportVcsLinkBody').innerHTML = NO_HISTORY;
+  }
+
+  // OS Audit 섹션
+  const osAudit = val.osAudit;
+  document.getElementById('reportAuditCard').style.display = '';
+  if (osAudit && osAudit.sections && Object.keys(osAudit.sections).length) {
+    const sections = osAudit.sections;
+    document.getElementById('reportAuditBody').innerHTML = Object.entries(sections).map(([sec, lines]) => `
+      <div class="mb-3">
+        <div class="fw-bold text-secondary small border-bottom pb-1 mb-1">${esc(sec)}</div>
+        ${lines.map(l => `<div class="small font-monospace">${esc(l)}</div>`).join('')}
+      </div>`).join('');
+  } else {
+    document.getElementById('reportAuditBody').innerHTML = NO_HISTORY;
+  }
+}
+
+function renderSetupRows(items) {
+  if (!items.length) return '<tr><td colspan="5" class="text-center text-muted py-2 ps-3">이력 없음</td></tr>';
+  return items.map(r => `<tr>
+    <td class="ps-3 small font-monospace">${esc(r.playbookName||'-')}</td>
+    <td class="small">${esc(PLAYBOOK_DESC[r.playbookName]||'-')}</td>
+    <td>${badge(r.status)}</td>
+    <td class="small">${fmtDate(r.startedAt)}</td>
+    <td class="small">${fmtDate(r.finishedAt)}</td>
+  </tr>`).join('');
+}
+
+function openHtmlReport(phase, download) {
+  const serverId = document.getElementById('reportServerId').value;
+  if (!serverId) { toast('서버를 선택하세요.', false); return; }
+  const url = API + '/report/' + serverId + '/html/' + phase + (download ? '?download=true' : '');
+  if (download) {
+    const a = document.createElement('a'); a.href = url; a.click();
+  } else {
+    window.open(url, '_blank');
+  }
+}
+
+function downloadReportCsv() { downloadReportXlsx(); }
+
+function downloadReportXlsx() {
+  if (!_reportData) return;
+  const serverId = document.getElementById('reportServerId').value;
+  window.location.href = API + '/report/' + serverId + '/excel';
+}
+
+function _downloadReportXlsx_unused() {
+  if (!_reportData) return;
+  const r = _reportData;
+  const wb = XLSX.utils.book_new();
+
+  // ── 공통 스타일 헬퍼 ──────────────────────────
+  const hStyle = { font:{bold:true,color:{rgb:'FFFFFF'}}, fill:{fgColor:{rgb:'2563EB'}}, alignment:{horizontal:'center'} };
+  const subHStyle = { font:{bold:true}, fill:{fgColor:{rgb:'E8F0FE'}}, alignment:{horizontal:'center'} };
+  const okStyle   = { font:{bold:true,color:{rgb:'166534'}}, fill:{fgColor:{rgb:'DCFCE7'}} };
+  const failStyle = { font:{bold:true,color:{rgb:'991B1B'}}, fill:{fgColor:{rgb:'FEE2E2'}} };
+  const warnStyle = { font:{bold:true,color:{rgb:'92400E'}}, fill:{fgColor:{rgb:'FEF3C7'}} };
+
+  function applyStyle(ws, ref, style) {
+    if (!ws[ref]) return;
+    ws[ref].s = style;
+  }
+  function setColWidths(ws, widths) {
+    ws['!cols'] = widths.map(w => ({wch: w}));
+  }
+  function statusStyle(status) {
+    if (status === 'SUCCESS' || status === 'OK') return okStyle;
+    if (status === 'FAIL') return failStyle;
+    if (status === 'WARN') return warnStyle;
+    return {};
+  }
+  function cellRef(c, r) { return XLSX.utils.encode_cell({c, r}); }
+
+  // ── 시트 1: OS 셋업 결과 ──────────────────────
+  (function() {
+    const rows = [];
+    rows.push(['서버명', r.serverName, 'IP', r.ipAddress, '생성일시', fmtDate(r.generatedAt)]);
+    rows.push([]);
+    rows.push(['Playbook', '설명', '상태', '시작 시간', '종료 시간']);
+    (r.osSetup||[]).forEach(x => rows.push([
+      x.playbookName||'-', PLAYBOOK_DESC[x.playbookName]||'-', x.status||'-',
+      fmtDate(x.startedAt), fmtDate(x.finishedAt)
+    ]));
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    setColWidths(ws, [28, 28, 10, 18, 18]);
+    // 헤더 행(2번째 rows 인덱스 2) 스타일
+    ['A3','B3','C3','D3','E3'].forEach(ref => applyStyle(ws, ref, subHStyle));
+    // 상태 셀 색상
+    (r.osSetup||[]).forEach((x, i) => applyStyle(ws, cellRef(2, 3+i), statusStyle(x.status)));
+    XLSX.utils.book_append_sheet(wb, ws, 'OS 셋업');
+  })();
+
+  // ── 시트 2: PKG 셋업 결과 ─────────────────────
+  (function() {
+    const rows = [];
+    rows.push(['서버명', r.serverName, 'IP', r.ipAddress, '생성일시', fmtDate(r.generatedAt)]);
+    rows.push([]);
+    rows.push(['Playbook', '설명', '상태', '시작 시간', '종료 시간']);
+    (r.pkgSetup||[]).forEach(x => rows.push([
+      x.playbookName||'-', PLAYBOOK_DESC[x.playbookName]||'-', x.status||'-',
+      fmtDate(x.startedAt), fmtDate(x.finishedAt)
+    ]));
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    setColWidths(ws, [28, 28, 10, 18, 18]);
+    ['A3','B3','C3','D3','E3'].forEach(ref => applyStyle(ws, ref, subHStyle));
+    (r.pkgSetup||[]).forEach((x, i) => applyStyle(ws, cellRef(2, 3+i), statusStyle(x.status)));
+    XLSX.utils.book_append_sheet(wb, ws, 'PKG 셋업');
+  })();
+
+  // ── 시트 3: Validation 결과 ───────────────────
+  (function() {
+    const val = r.validation || {};
+    const rows = [];
+    rows.push(['서버명', r.serverName, 'IP', r.ipAddress, '생성일시', fmtDate(r.generatedAt)]);
+    rows.push([]);
+
+    // VCS 설치 검증
+    const vcs = val.vcsVerify;
+    if (vcs && vcs.items && vcs.items.length) {
+      rows.push(['[VCS 설치 검증]', '', '', '실행일시', fmtDate(vcs.executedAt)]);
+      rows.push(['상태', '항목']);
+      const vcsStart = rows.length;
+      vcs.items.forEach(i => rows.push([i.status, i.detail||'']));
+      const ws_tmp_vcs_start = vcsStart; // for style below
+    }
+
+    // OS Audit 체크 항목
+    const audit = val.osAudit;
+    if (audit && audit.items && audit.items.length) {
+      rows.push([]);
+      rows.push(['[OS Audit 검증 항목]', '', '', '실행일시', fmtDate(audit.executedAt)]);
+      rows.push(['상태', '항목']);
+      audit.items.forEach(i => rows.push([i.status, i.detail||'']));
+    }
+
+    if (rows.length <= 2) {
+      rows.push(['Validation 이력 없음']);
+    }
+
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    setColWidths(ws, [14, 60, 10, 18, 18]);
+
+    // 상태 셀 색상 (A 컬럼, 값이 OK/WARN/FAIL인 행)
+    Object.keys(ws).forEach(ref => {
+      if (!ref.startsWith('A')) return;
+      const cell = ws[ref];
+      if (cell && ['OK','WARN','FAIL','SUCCESS'].includes(cell.v)) {
+        cell.s = statusStyle(cell.v);
+      }
+    });
+
+    XLSX.utils.book_append_sheet(wb, ws, 'Validation');
+  })();
+
+  // ── 시트 4: OS Audit 상세 ─────────────────────
+  (function() {
+    const val = r.validation || {};
+    const audit = val.osAudit;
+    if (!audit || !audit.sections || !Object.keys(audit.sections).length) return;
+
+    const rows = [];
+    rows.push(['서버명', r.serverName, 'IP', r.ipAddress, '생성일시', fmtDate(r.generatedAt)]);
+    rows.push(['실행일시', fmtDate(audit.executedAt)]);
+    rows.push([]);
+
+    const sectionHeaderRows = [];
+    Object.entries(audit.sections).forEach(([sec, lines]) => {
+      sectionHeaderRows.push(rows.length); // 섹션 헤더 행 인덱스 기록
+      rows.push(['[ ' + sec + ' ]']);
+      if (lines && lines.length) {
+        lines.forEach(l => rows.push([l]));
+      }
+      rows.push([]);
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    setColWidths(ws, [60]);
+
+    // 섹션 헤더 강조
+    sectionHeaderRows.forEach(ri => {
+      const ref = cellRef(0, ri);
+      if (ws[ref]) ws[ref].s = subHStyle;
+    });
+
+    XLSX.utils.book_append_sheet(wb, ws, 'OS Audit 상세');
+  })();
+
+  // ── 다운로드 ──────────────────────────────────
+  const filename = `report_${r.serverName}_${(r.generatedAt||'').slice(0,10)}.xlsx`;
+  XLSX.writeFile(wb, filename);
+}
+
+async function loadConfig() {
+  try {
+    _configData = await api('GET','/config');
+    document.getElementById('configBody').innerHTML = _configData.map(c=>`
+      <div class="mb-3">
+        <label class="form-label">${CONFIG_LABELS[c.configKey]||c.configKey} <span class="text-muted fw-normal small">(${c.configKey})</span></label>
+        <input type="text" class="form-control form-control-sm" id="cfg_${c.configKey.replace(/\./g,'_')}" value="${esc(c.configValue)}">
+      </div>`).join('');
+  } catch(e) { toast(e.message,false); }
+}
+async function saveConfig() {
+  const entries = {};
+  _configData.forEach(c=>{ const el=document.getElementById('cfg_'+c.configKey.replace(/\./g,'_')); if(el) entries[c.configKey]=el.value; });
+  try { await api('PUT','/config',entries); toast('설정이 저장되었습니다.'); } catch(e) { toast(e.message,false); }
+}
+
+/* ── 초기화 ────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', loadServers);
+</script>
+</body>
+</html>

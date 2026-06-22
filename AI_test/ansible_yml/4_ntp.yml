@@ -1,0 +1,63 @@
+- hosts: vcs
+  remote_user: root
+  tasks:
+       - copy:
+            src: /root/lter_vcs_busan/rpm/ntp/
+            dest: /root/rpm/ntp/
+       # Get a list of rpms from a directory
+
+       - name: find rpm files and register the result
+      
+         find:
+           paths: /root/rpm/ntp/
+           patterns: "*.rpm"
+         register: rpm_files
+
+       # Create a list of the rpms to use with the yum install command
+       - set_fact:
+            rpm_lists: "{{ rpm_files.files | map(attribute='path') | list}} "
+
+         # Use yum to install with a list
+       - name: install rpm files
+         yum:
+             name: "{{rpm_lists}}"
+             state: present
+
+       - name: Stop ntp
+         systemd:
+           state: stopped
+           enabled : yes
+           name : ntpd
+         
+       - name: Add manual ntp server
+         lineinfile:
+           path: /etc/ntp.conf
+           state: present
+           insertafter:  'server 3.centos.pool.ntp.org iburst'
+           line: "server {{ ntp_server }}"
+
+#       - name: Sync time initially
+#         shell : "ntpdate {{ ntp_server }}"
+         
+         
+       - name: Remove the default DNS server
+         lineinfile:
+           path: /etc/ntp.conf
+           state: absent
+           regexp:  'centos.pool.ntp.org iburst'
+         
+       - name: Remove the default DNS server
+         lineinfile:
+           path: /etc/ntp.conf
+           state: absent
+           regexp:  'rhel.pool.ntp.org iburst'
+        
+       - name: start ntp server
+         systemd:
+           state: started
+           enabled : yes
+           name : ntpd
+         
+       - name: set timezone to Asia/Seoul
+         timezone:
+           name: Asia/Seoul

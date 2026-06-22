@@ -1,0 +1,23 @@
+[Unit]
+Description=LTER Infra Automation Web Server
+After=network.target mariadb.service
+Wants=mariadb.service
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/opt/lter/infra
+ExecStart=/usr/bin/java \
+    -Xms512m -Xmx1024m \
+    -Dspring.profiles.active=prod \
+    -Dspring.config.location=file:/opt/lter/infra/config/ \
+    -Dlogging.file.name=/var/log/lter-infra/app.log \
+    -jar /opt/lter/infra/lter-infra-current.jar
+Restart=on-failure
+RestartSec=10
+StandardOutput=append:/var/log/lter-infra/stdout.log
+StandardError=append:/var/log/lter-infra/stderr.log
+
+[Install]
+WantedBy=multi-user.target

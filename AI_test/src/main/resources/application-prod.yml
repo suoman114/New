@@ -1,0 +1,29 @@
+# ==========================================
+# PROD 프로파일 - MariaDB (운영/RPM 배포용)
+# ==========================================
+spring:
+  datasource:
+    url: jdbc:mariadb://localhost:3306/lter_infra?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul
+    username: lter
+    password: lter.123
+    driver-class-name: org.mariadb.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+        dialect: org.hibernate.dialect.MariaDB103Dialect
+
+logging:
+  level:
+    com.lter.infra: INFO
+  file:
+    name: /var/log/lter-infra/app.log
+  logback:
+    rollingpolicy:
+      max-file-size: 100MB
+      max-history: 30
+      file-name-pattern: /var/log/lter-infra/app-%d{yyyy-MM-dd}.%i.log
