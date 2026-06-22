@@ -94,10 +94,8 @@ public class GitExecutor {
         if (gitRepo.getAuthType() == GitRepo.AuthType.PASSWORD
                 && gitRepo.getUsername() != null && gitRepo.getPassword() != null) {
             // http(s)://username:password@host/repo 형태로 조합
-            String url = gitRepo.getRepoUrl();
-            String protocol = url.startsWith("https") ? "https" : "http";
-            String rest = url.replaceFirst("https?://", "");
-            return protocol + "://" + gitRepo.getUsername() + ":" + gitRepo.getPassword() + "@" + rest;
+            return RemoteCommandBuilder.injectHttpCredentials(
+                    gitRepo.getRepoUrl(), gitRepo.getUsername(), gitRepo.getPassword());
         }
         return gitRepo.getRepoUrl();
     }

@@ -4,6 +4,7 @@ import com.lter.infra.domain.entity.InfraConfig;
 import com.lter.infra.domain.entity.JobHistory;
 import com.lter.infra.domain.entity.TargetServer;
 import com.lter.infra.repository.JobHistoryRepository;
+import com.lter.infra.util.RemoteCommandBuilder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -13,7 +14,6 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStreamReader;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -134,48 +134,18 @@ public class PackageDeployService {
         return allOk;
     }
 
+    // 원격 명령 구성은 RemoteCommandBuilder(순수 함수, 단위테스트 대상)에 위임한다.
     private List<String> buildScpCmd(String localPath, String ip, int port,
                                       String password, String remotePath) {
-        List<String> cmd = new ArrayList<>();
-        if (password != null && !password.trim().isEmpty()) {
-            cmd.add("sshpass"); cmd.add("-p"); cmd.add(password);
-        }
-        cmd.add("scp");
-        cmd.add("-P"); cmd.add(String.valueOf(port));
-        cmd.add("-o"); cmd.add("StrictHostKeyChecking=no");
-        cmd.add("-o"); cmd.add("ConnectTimeout=10");
-        cmd.add(localPath);
-        cmd.add("root@" + ip + ":" + remotePath);
-        return cmd;
+        return RemoteCommandBuilder.scp(localPath, ip, port, password, remotePath);
     }
 
     private List<String> buildSshCmd(String ip, int port, String password, String remoteCmd) {
-        List<String> cmd = new ArrayList<>();
-        if (password != null && !password.trim().isEmpty()) {
-            cmd.add("sshpass"); cmd.add("-p"); cmd.add(password);
-        }
-        cmd.add("ssh");
-        cmd.add("-p"); cmd.add(String.valueOf(port));
-        cmd.add("-o"); cmd.add("StrictHostKeyChecking=no");
-        cmd.add("-o"); cmd.add("ConnectTimeout=10");
-        cmd.add("-o"); cmd.add("PubkeyAuthentication=no");
-        cmd.add("-o"); cmd.add("PreferredAuthentications=password");
-        cmd.add("root@" + ip);
-        cmd.add(remoteCmd);
-        return cmd;
+        return RemoteCommandBuilder.ssh(ip, port, password, remoteCmd);
     }
 
     private String buildExtractCmd(String remotePath, String fileName) {
-        String filePath = remotePath.endsWith("/")
-                ? remotePath + fileName : remotePath + "/" + fileName;
-        if (fileName.endsWith(".tar.gz") || fileName.endsWith(".tgz")) {
-            return "tar -xzf " + filePath + " -C " + remotePath;
-        } else if (fileName.endsWith(".gz")) {
-            return "gunzip -f " + filePath;
-        } else if (fileName.endsWith(".zip")) {
-            return "unzip -o " + filePath + " -d " + remotePath;
-        }
-        return "echo 'unknown format: " + fileName + "'";
+        return RemoteCommandBuilder.extractCommand(remotePath, fileName);
     }
 
     private boolean runCmd(List<String> cmd, StringBuilder output, Consumer<String> log) {
