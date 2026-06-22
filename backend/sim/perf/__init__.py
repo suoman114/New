@@ -5,9 +5,11 @@
 
 from .metrics import PerfReport, PerfSample
 from .loadgen import LoadGenerator, LoadSpec, make_default_runner
+from .distributed import DistributedLoadGenerator, NullFeeder
 from .report import perf_flow_event
 
 __all__ = [
     "PerfReport", "PerfSample", "LoadGenerator", "LoadSpec",
     "make_default_runner", "perf_flow_event",
+    "DistributedLoadGenerator", "NullFeeder",
 ]

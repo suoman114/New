@@ -19,7 +19,13 @@ from sim.platform.models import SessionInfo, ValidationResult
 from sim.rmq import RmqMonitor
 from sim.scenario import ScenarioEngine, RunResult, load_all
 from sim.scenario.engine import Feeder
-from sim.perf import LoadGenerator, LoadSpec, make_default_runner, perf_flow_event
+from sim.perf import (
+    DistributedLoadGenerator,
+    LoadGenerator,
+    LoadSpec,
+    make_default_runner,
+    perf_flow_event,
+)
 from sim.tapper.port_alloc import RtpPortAllocator
 from sim.tapper.udp_sender import TapperFeeder
 from sim.validator import Validator
@@ -102,18 +108,29 @@ class AppState:
             if started and isinstance(feeder, TapperFeeder):
                 await feeder.close()
 
+    # 이벤트 폭주 방지: 이 규모를 넘는 부하는 EventBus 발행을 끈다(메트릭만 수집).
+    LARGE_LOAD_THRESHOLD = 50
+
     async def run_load(self, scenario_id: str, *, total: int = 10, cps: float = 5.0,
-                       realtime: bool = False) -> dict:
-        """부하 시험: scenario 엔진을 N 세션 ramp-up 구동하고 요약을 반환."""
+                       realtime: bool = False, workers: int = 1) -> dict:
+        """부하 시험. workers>1 이면 멀티프로세스 분산(~2000+ 확장)."""
         if scenario_id not in self.scenarios:
             raise KeyError(scenario_id)
-        ports = RtpPortAllocator(self.config.tapper.rtp_port_base,
-                                 self.config.tapper.rtp_port_count)
-        runner = make_default_runner(feeder_factory=self._make_feeder, port_alloc=ports,
-                                     bus=self.bus, realtime=realtime)
-        gen = LoadGenerator(runner)
-        report = await gen.run(self.scenarios[scenario_id],
-                               LoadSpec(total=total, cps=cps, realtime=realtime))
+        scenario = self.scenarios[scenario_id]
+        if workers > 1:
+            gen = DistributedLoadGenerator(rtp_base=self.config.tapper.rtp_port_base,
+                                           rtp_count=self.config.tapper.rtp_port_count)
+            report = await gen.run(scenario, total=total, cps=cps, workers=workers,
+                                   realtime=realtime)
+        else:
+            ports = RtpPortAllocator(self.config.tapper.rtp_port_base,
+                                     self.config.tapper.rtp_port_count)
+            # 대규모는 이벤트 발행 억제(샘플링) — bus=None
+            bus = self.bus if total <= self.LARGE_LOAD_THRESHOLD else None
+            runner = make_default_runner(feeder_factory=self._make_feeder, port_alloc=ports,
+                                         bus=bus, realtime=realtime)
+            report = await LoadGenerator(runner).run(
+                scenario, LoadSpec(total=total, cps=cps, realtime=realtime))
         await self.bus.publish(perf_flow_event(report, scenario_id=scenario_id))
         self.last_perf = report.summary()
         return self.last_perf

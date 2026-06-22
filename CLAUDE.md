@@ -330,3 +330,5 @@ cd frontend && npm install && npm run dev
       — 77건 통과. /api/perf/run·/api/perf, 대시보드 부하시험 패널, perf 결과 SYS 이벤트. 대규모(~2000+)는 확장 지점
 - [x] 통합시험: 실 SUT 연동(MariaDB TBL_RECORD_INFO/RMQ shadow/램디스크), env override, /api/integration/health·/api/validate, 대시보드 헬스칩·세션별 검증 (`docs/specs/integration.md`)
       — 99건 통과. 전부 graceful degrade(미연결 시 해당 검증만 스킵)
+- [x] 대규모 분산 부하: 멀티프로세스 분산 생성기(DistributedLoadGenerator) + 이벤트 폭주 방지(임계 초과 시 bus=None) (`backend/sim/perf/distributed.py`)
+      — 105건 통과. 500세션/8워커 611ms·819sps 스모크. /api/perf workers, 대시보드 워커수 입력

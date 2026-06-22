@@ -7,6 +7,7 @@ export function PerfPanel(props: { events: FlowEvent[]; scenarioId: string }) {
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [perf, setPerf] = useState<PerfSummary | null>(null);
   const [total, setTotal] = useState(20);
+  const [workers, setWorkers] = useState(1);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -19,7 +20,7 @@ export function PerfPanel(props: { events: FlowEvent[]; scenarioId: string }) {
   const runLoad = async () => {
     setBusy(true);
     try {
-      setPerf(await api.perfRun(props.scenarioId, total, 50));
+      setPerf(await api.perfRun(props.scenarioId, total, workers > 1 ? 5000 : 50, workers));
     } catch {
       /* ignore */
     } finally {
@@ -40,10 +41,20 @@ export function PerfPanel(props: { events: FlowEvent[]; scenarioId: string }) {
           <input
             type="number"
             min={1}
-            max={500}
+            max={5000}
             value={total}
             onChange={(e) => setTotal(Number(e.target.value))}
             style={{ width: 64 }}
+            title="총 세션 수"
+          />
+          <input
+            type="number"
+            min={1}
+            max={32}
+            value={workers}
+            onChange={(e) => setWorkers(Number(e.target.value))}
+            style={{ width: 48 }}
+            title="분산 워커 수(>1: 멀티프로세스)"
           />
           <button onClick={runLoad} disabled={busy || !props.scenarioId}>
             {busy ? "부하 중..." : "⚡ 부하 시험"}

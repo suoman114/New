@@ -40,8 +40,8 @@ export const api = {
   results: () => get<Record<string, ValidationResult>>("/api/results"),
   eventLogs: (eventId: string) => get<EventLogs>(`/api/events/${eventId}/logs`),
   metrics: () => get<Metrics>("/api/metrics"),
-  perfRun: (scenario_id: string, total: number, cps: number) =>
-    post<PerfSummary>("/api/perf/run", { scenario_id, total, cps, realtime: false }),
+  perfRun: (scenario_id: string, total: number, cps: number, workers = 1) =>
+    post<PerfSummary>("/api/perf/run", { scenario_id, total, cps, realtime: false, workers }),
   perfLast: () => get<PerfSummary>("/api/perf"),
   integrationHealth: () => get<IntegrationHealth>("/api/integration/health"),
   validate: (session_id: string) =>

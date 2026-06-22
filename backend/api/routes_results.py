@@ -13,6 +13,7 @@ class PerfRequest(BaseModel):
     total: int = 10
     cps: float = 5.0
     realtime: bool = False
+    workers: int = 1          # >1 이면 멀티프로세스 분산(~2000+ 확장)
 
 
 @router.get("/sessions")
@@ -59,7 +60,7 @@ async def perf_run(req: PerfRequest, request: Request):
     app = request.app.state.app
     try:
         return await app.run_load(req.scenario_id, total=req.total, cps=req.cps,
-                                  realtime=req.realtime)
+                                  realtime=req.realtime, workers=req.workers)
     except KeyError:
         raise HTTPException(status_code=404, detail=f"unknown scenario {req.scenario_id}")
 
