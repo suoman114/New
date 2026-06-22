@@ -319,7 +319,8 @@ cd frontend && npm install && npm run dev
       — sip+rtp+tapper 구동 엔드투엔드 동작(`backend/run_demo.py`), 전체 테스트 41건 통과
 - [x] validator: 묵음표(부록7)+골든 재구성(부록4/5)+오디오/파일/DB 검증 facade (`backend/sim/validator/`)
       — 53건 통과. SID/NO_DATA→묵음, 손실 timestamp-gap 채움은 v2 확장
-- [ ] rmq-monitor: RMQ 모니터/검증
+- [x] rmq-monitor: RMQ 디코드/헤더검증/floor 시퀀스·txn 페어링·에러코드, shadow monitor graceful degrade (`backend/sim/rmq/`)
+      — 63건 통과. 실 로그 메시지(heartbeat_indi/recording_change TAKEN·IDLE/3001 에러) 기준
 - [ ] dashboard-backend: REST + WebSocket + 로그 드릴다운 API
 - [ ] dashboard-frontend: ladder + 제어 + 로그 + 결과
 - [ ] perf: 부하 생성/메트릭 (확장)
