@@ -1,0 +1,31 @@
+# 시나리오: IMS 영상 녹취 (H.264) — 2차
+# 근거: 설계서 부록8·9(H.264 de-interleaving/DON), 파일명 I_..._.h264, RECORD_TYPE=AUDIO_VIDEO
+# 주: H.264 RTP de-packetization/DON/Annex B 재구성·검증은 구현됨(sim/rtp/h264.py,
+#     sim/validator/video_check.py). 영상 트래픽 생성 엔진(타임라인 송출)은 확장 지점.
+id: IMS-VIDEO
+title: "IMS 영상 통화 H.264 녹취 (검증 라이브러리 기반)"
+service_type: IMS
+call:
+  outbound: 0
+  from_no: "01011113333"
+  to_no: "01012341234"
+media:
+  codec: H264
+  clock: 90000
+  packetization_mode: 1        # 0/none=single, 1=Non-interleaved(STAP-A/FU-A), 2=Interleaved
+  source_video: "audio/sample.h264"
+  duration_sec: 5
+expect:
+  file:
+    prefix: "I"
+    ext: "h264"
+    dir_media: "VIDEO"
+    name_pattern: "I_{callid}_{mdn}_{ts}.h264"
+  db:
+    table: "TBL_RECORD_INFO"
+    RECORD_TYPE: "AUDIO_VIDEO"
+    VIDEO_EXTENSION: "h264"
+  video:
+    # de-packetize(STAP-A/FU-A) → (interleaved 면 DON 정렬) → NRI=0 drop → Annex B
+    reconstruct: annexb
+    drop_nri_zero: true
