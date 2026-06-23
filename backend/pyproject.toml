@@ -13,9 +13,8 @@ dependencies = [
     "sqlalchemy>=2.0",
     "pymysql>=1.1",        # MariaDB(TBL_RECORD_INFO) read-only
     "fastapi>=0.110",
-    "uvicorn[standard]>=0.29",
+    "uvicorn>=0.29",       # 순수(uvicorn[standard] 의 uvloop/watchfiles 는 CentOS7 빌드 회피)
     "aio-pika>=9.4",       # RMQ shadow monitor
-    "numpy>=1.26",         # 오디오 비교
 ]
 
 [project.optional-dependencies]

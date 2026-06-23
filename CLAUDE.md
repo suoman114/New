@@ -252,7 +252,7 @@ class FlowEvent:
 
 ### 8.2 기술/도구
 - Python ≥ 3.11, `asyncio`. 패키지: `fastapi`, `uvicorn`, `pydantic`, `pytest`, `pytest-asyncio`,
-  `aio-pika`(RMQ), `sqlalchemy`/드라이버(DB), `numpy`(오디오 비교), `scapy`(옵션).
+  `aio-pika`(RMQ), `sqlalchemy`/드라이버(DB), `scapy`(옵션, pcap_mirror).
 - AMR-WB: 가능 시 `ffmpeg`/`opencore-amr` 연동 또는 순수 파이썬 비트 패킹(부록 5 기준).
 - Frontend: React + TypeScript + Vite, WebSocket, ladder 시각화(D3 또는 커스텀 SVG).
 - Lint/format: `ruff` + `black`(py), `eslint` + `prettier`(ts).
