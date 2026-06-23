@@ -261,8 +261,12 @@ mvn spring-boot:run
 > 다음 단계는 통합/E2E(`@WebMvcTest` 컨트롤러 계약, ansible dry-run, 파이프라인 오케스트레이션) 확장.
 
 ### 통합/E2E (진행 중)
-- [x] `@WebMvcTest(ServerController)` REST 계약: ApiResponse 형태(success/message/data), 검증 실패 400(IP/공백),
-      bulk 빈 목록 400, CRUD 라우팅. (7건) — Spring 슬라이스 부팅 확인. **전체 60건 통과.**
+- [x] `@WebMvcTest` REST 계약(`@MockBean` 서비스, GlobalExceptionHandler 검증):
+  - ServerController(7): ApiResponse 형태, 검증 실패 400(IP/공백), bulk 빈 목록 400, CRUD.
+  - SetupController(6): serverIds 가드 400, jobKey 반환, playbook 목록.
+  - ValidationController(5): scriptId NotNull/serverIds NotEmpty 400, 단건/배치 위임.
+  - ReportController(4): JSON 보고서, HTML 인라인/attachment, Excel xlsx 헤더.
+  - → 컨트롤러 계약 22건 포함 **전체 75건 통과.**
 - [ ] PipelineService 오케스트레이션(MANUAL 승인 waitForApproval/approve) 테스트 — DB/@Async 의존으로 슬라이스/목 설계 필요.
 - [ ] ansible 플레이북 CentOS7/RHEL8 변수 분기(OsTarget) 실제 반영 — 대상 환경/ansible 툴링 필요(현재 미설치).
 
