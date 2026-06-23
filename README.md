@@ -104,6 +104,10 @@ uvicorn api.main:app
 
 자세한 절차/환경변수표: [`docs/specs/integration.md`](./docs/specs/integration.md).
 
+> 실 자원 라이브 데모: `cd backend && python integration_live.py` —
+> 실 uvicorn(HTTP) + 실 UDP + 실 **MariaDB**(또는 SQLite) + 실 **RabbitMQ** 로
+> FILE/DB/AUDIO/RMQ 전 항목 검증(15/15 PASS).
+
 ---
 
 ## 5. 성능시험

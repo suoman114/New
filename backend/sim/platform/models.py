@@ -14,7 +14,7 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Any, Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 # ── 열거형(문자열 상수) ──────────────────────────────────────────────────────
 Channel = Literal["SIP", "RTP", "RMQ", "DB", "VALIDATION", "SYS"]
@@ -114,6 +114,12 @@ class RecordInfo(BaseModel):
     group_display_name: Optional[str] = None
     user_name: Optional[str] = None
     fps: Optional[str] = None
+
+    @field_validator("duration_time", "fps", "mcptt_group_id", mode="before")
+    @classmethod
+    def _coerce_str(cls, v: Any) -> Optional[str]:
+        # MariaDB TIME 컬럼은 timedelta, 일부 컬럼은 정수로 올 수 있어 문자열로 정규화
+        return None if v is None else str(v)
 
 
 # ── 시뮬레이터 세션 상태(세션 테이블용) ───────────────────────────────────────

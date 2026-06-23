@@ -50,16 +50,28 @@ GET /api/integration/health
 ## 5. 라이브 통합 데모/테스트 (실 자원)
 외부 uVCS 없이도 **실 자원**으로 전체 루프를 검증한다:
 - `backend/integration_live.py` — 실 uvicorn(HTTP) + 실 UDP 주입(FakeSUT 수신) +
-  실 SQLite(`TBL_RECORD_INFO`) + (브로커 가동 시)실 RabbitMQ shadow monitor → `validate_session`.
-  결과: MCPTT-GROUP-FLOOR **FILE/DB/AUDIO/RMQ 전 항목 PASS**.
-- `backend/tests/test_live_integration.py` — 실 SQLite SQL SELECT, 실 UDP 와이어 라운드트립.
-- `backend/tests/test_rmq_live.py` — 실 RabbitMQ 브로커로 `RmqMonitor` consume 경로(브로커 미가동 시 skip).
+  실 DB(있으면 **MariaDB+pymysql**, 없으면 SQLite, `TBL_RECORD_INFO`) +
+  (브로커 가동 시)실 RabbitMQ shadow monitor → `validate_session`.
+  결과: MCPTT-GROUP-FLOOR **FILE/DB/AUDIO/RMQ 전 항목 PASS (15/15)**.
+- `backend/tests/test_live_integration.py` — 실 SQLite/**실 MariaDB**(production 드라이버
+  `mysql+pymysql`) SQL SELECT + TIME→str 정규화, 실 UDP 와이어 라운드트립.
+- `backend/tests/test_rmq_live.py` — 실 RabbitMQ 브로커로 `RmqMonitor` consume 경로(미가동 시 skip).
 
-로컬 RabbitMQ 기동 예(테스트용):
+로컬 브로커/DB 기동 예(테스트용):
 ```bash
+# RabbitMQ
 apt-get install -y rabbitmq-server
-HOME=/tmp/rmq RABBITMQ_MNESIA_BASE=/tmp/rmq/data rabbitmq-server   # 5672 listen
+HOME=/tmp/rmq RABBITMQ_MNESIA_BASE=/tmp/rmq/data rabbitmq-server          # 5672
+
+# MariaDB
+apt-get install -y mariadb-server
+mariadb-install-db --user=mysql --datadir=/tmp/mysqldata
+mariadbd --user=mysql --datadir=/tmp/mysqldata --pid-file=/tmp/mysqld.pid # 3306
+mariadb -u root -e "CREATE DATABASE uvcs; CREATE USER 'uvcs'@'127.0.0.1' IDENTIFIED BY 'uvcspw';
+  GRANT ALL ON uvcs.* TO 'uvcs'@'127.0.0.1';"
 ```
+> 실제 운영 DB 가 EUC-KR 이므로 `DbConfig.charset=euckr`(기본). `TIME` 컬럼은 드라이버가
+> `timedelta` 로 주므로 `RecordInfo` 가 문자열로 정규화한다(실 MariaDB 연동에서 확인).
 
 ## 6. 주의
 - 시뮬레이터는 SUT 와 동일 host 또는 원격 모두 지원. 원격이면 램디스크/NAS 를 마운트하거나

@@ -4,6 +4,7 @@
 """
 
 import asyncio
+import socket
 import sqlite3
 
 from sim.platform.config import DbConfig, TapperConfig
@@ -111,3 +112,63 @@ async def test_real_udp_injection_roundtrip():
     wire_golden = reconstruct_from_packets(captured, mode_set_max=8)
     intended_golden = Validator(mode_set_max=8).reconstruct_golden(run.spurts[0])
     assert wire_golden == intended_golden
+
+
+def _maria_repo():
+    """실 MariaDB(uvcs) 연결 가능하면 production 리포지토리, 아니면 None."""
+    if not _port_up("127.0.0.1", 3306):
+        return None
+    try:
+        import pymysql
+        con = pymysql.connect(host="127.0.0.1", port=3306, user="uvcs",
+                              password="uvcspw", database="uvcs", connect_timeout=2)
+        con.close()
+        return DbConfig(driver="mysql+pymysql", host="127.0.0.1", port=3306,
+                        user="uvcs", password="uvcspw", database="uvcs", readonly=True)
+    except Exception:
+        return None
+
+
+def _port_up(host: str, port: int) -> bool:
+    s = socket.socket()
+    s.settimeout(1)
+    try:
+        return s.connect_ex((host, port)) == 0
+    finally:
+        s.close()
+
+
+def test_real_mariadb_repository():
+    """실 MariaDB + production 드라이버(mysql+pymysql) SELECT + TIME→str 정규화."""
+    cfg = _maria_repo()
+    if cfg is None:
+        import pytest
+        pytest.skip("MariaDB(uvcs) 미가동")
+    import pymysql
+    con = pymysql.connect(host="127.0.0.1", port=3306, user="uvcs",
+                          password="uvcspw", database="uvcs")
+    with con.cursor() as cur:
+        cur.execute(
+            "CREATE TABLE IF NOT EXISTS TBL_RECORD_INFO ("
+            "SIP_CALLID VARCHAR(255), FILE_INDEX INT, RECORD_TYPE VARCHAR(32),"
+            "AUDIO_EXTENSION VARCHAR(16), VIDEO_EXTENSION VARCHAR(16), CREATE_TIME DATETIME,"
+            "END_TIME DATETIME, DURATION_TIME TIME, CALLER_FILE_NAME VARCHAR(512),"
+            "CALLEE_FILE_NAME VARCHAR(512), REASON_CORD INT, REASON_STR VARCHAR(64),"
+            "FILE_STATUS INT, MCPTT_GROUP_ID VARCHAR(64), GROUP_DISPLAY_NAME VARCHAR(128),"
+            "USER_NAME VARCHAR(128), FPS VARCHAR(16))")
+        cur.execute("DELETE FROM TBL_RECORD_INFO WHERE SIP_CALLID=%s", ("pytest-maria",))
+        cur.execute(
+            "INSERT INTO TBL_RECORD_INFO (SIP_CALLID,FILE_INDEX,RECORD_TYPE,AUDIO_EXTENSION,"
+            "DURATION_TIME,FILE_STATUS,MCPTT_GROUP_ID,CALLER_FILE_NAME) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",
+            ("pytest-maria", 5008, "AUDIO", "awb", "00:00:01", 2, "98152020001",
+             "M_pytest-maria_585102802_x"))
+    con.commit()
+    con.close()
+
+    repo = SqlAlchemyRecordInfoRepository(cfg)
+    r = repo.by_call_id_file_index("pytest-maria", 5008)
+    assert r is not None and r.file_status == 2 and r.audio_extension == "awb"
+    assert r.mcptt_group_id == "98152020001"
+    # MariaDB TIME → timedelta → str 정규화 검증
+    assert isinstance(r.duration_time, str) and "0:00:01" in r.duration_time
