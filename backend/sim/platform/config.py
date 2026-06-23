@@ -34,6 +34,9 @@ class DbConfig(BaseModel):
     readonly: bool = True
 
     def url(self) -> str:
+        # SQLite(경량 실 DB: 통합/오프라인) 지원: driver=sqlite, database=파일경로
+        if self.driver.startswith("sqlite"):
+            return f"sqlite:///{self.database}"
         return (f"{self.driver}://{self.user}:{self.password}"
                 f"@{self.host}:{self.port}/{self.database}?charset={self.charset}")
 
@@ -101,6 +104,7 @@ def _apply_env(cfg: SimConfig) -> SimConfig:
     """환경변수 override (실 서버 통합시험용). 미설정 시 yaml 값 유지."""
     g = os.getenv
     db = cfg.sut.db
+    db.driver = g("UVCS_DB_DRIVER", db.driver)     # sqlite 등 실 DB 드라이버 override
     db.host = g("UVCS_DB_HOST", db.host)
     db.port = int(g("UVCS_DB_PORT", str(db.port)))
     db.user = g("UVCS_DB_USER", db.user)
