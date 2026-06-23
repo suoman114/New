@@ -109,25 +109,32 @@ res.body : { "type":"TAKEN", "file_index":5008,
 
 ## 4. DB — `TBL_RECORD_INFO` (MariaDB/Hibernate, as-built)
 INSERT(저장 시작, `FILE_STATUS=0`) → UPDATE(완료, `FILE_STATUS=2`, END_TIME/DURATION/REASON 채움).
+> ✅ **실 서버 `SHOW COLUMNS` 로 확정된 스키마**(192.168.7.64, DB `VCSM`). 로그상 `REASON_CORD`(오타)로
+> 보였으나 실제 컬럼명은 **`REASON_CODE`**. 또한 `FTEL`/`ETEL`/`CALL_TYPE` 컬럼이 실재한다.
+
 | 컬럼 | 예시/의미 |
 |---|---|
 | `SIP_CALLID` | 호 ID (PK 일부) |
 | `FILE_INDEX` | 파일 시퀀스 (PK 일부, MCPTT talk spurt 별) |
-| `RECORD_TYPE` | `AUDIO` (초기 null → 확정) |
+| `FTEL` | 발신 국번/번호 |
+| `ETEL` | 착신 전화번호 |
+| `CALL_TYPE` | `IMS` / `MCPTT` (호 종류) |
+| `RECORD_TYPE` | `AUDIO` / `VIDEO` / `AUDIO_VIDEO` (초기 null → 확정) |
 | `AUDIO_EXTENSION` | `awb`/`amr` |
-| `VIDEO_EXTENSION` | (영상) |
+| `VIDEO_EXTENSION` | `h264` (영상) |
 | `CREATE_TIME` / `END_TIME` | 시작/종료 |
-| `DURATION_TIME` | `00:00:00.668` |
+| `DURATION_TIME` | `00:00:00.668` (MariaDB `TIME` → 드라이버에서 `timedelta`) |
 | `CALLER_FILE_NAME` / `CALLEE_FILE_NAME` | 레그별 파일명(MCPTT 는 caller만) |
-| `REASON_CORD` | (오타 컬럼명) 0 → 2(완료) |
+| `REASON_CODE` | 처리 결과코드 (0 → 2 완료) — **실 컬럼명** |
 | `REASON_STR` | `SUCCESS` |
 | `FILE_STATUS` | `0`저장중 / `1`부분 / `2`완료 / `-1`실패 |
 | `MCPTT_GROUP_ID` | `98152020001` |
 | `GROUP_DISPLAY_NAME` / `USER_NAME` | 그룹/사용자 표시명 (로그는 EUC-KR mojibake) |
 | `FPS` | `0,0` (영상 프레임율) |
 
-> 검증기는 `record_file`(설계서) 대신 **`TBL_RECORD_INFO`** 를 조회한다. 컬럼명/`FILE_STATUS` 전이(0→2),
-> `REASON_CORD`(오타)·`MCPTT_GROUP_ID` 등 실제 컬럼을 사용. DB 인코딩(EUC-KR) 주의.
+> 검증기는 `record_file`(설계서) 대신 **`TBL_RECORD_INFO`** 를 조회한다. `FILE_STATUS` 전이(0→2),
+> `REASON_CODE`·`MCPTT_GROUP_ID`·`FTEL`/`ETEL`/`CALL_TYPE` 등 실제 컬럼을 사용. DB 인코딩(EUC-KR) 주의.
+> platform.db 는 `SELECT *` + **존재 컬럼만 매핑**(대소문자 무관)으로 스키마 차이에 내성을 갖는다.
 
 ## 5. VCMM Record State Machine & 통계 (검증 골든)
 - 상태: `RECORD_READY → RECORDING → IDLE` (MCPTT floor TAKEN→RECORDING, IDLE→파일 종료).

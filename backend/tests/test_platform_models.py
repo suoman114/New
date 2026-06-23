@@ -52,7 +52,7 @@ def test_recordinfo_fields_match_asbuilt():
         record_type="AUDIO",
         audio_extension="awb",
         file_status=2,
-        reason_cord=2,
+        reason_code=2,
         reason_str="SUCCESS",
         mcptt_group_id="98152020001",
         caller_file_name="M_..._585102802_98152020001_20260620000036",

@@ -20,6 +20,9 @@ from .models import RecordInfo
 _COLUMN_MAP: dict[str, str] = {
     "SIP_CALLID": "sip_callid",
     "FILE_INDEX": "file_index",
+    "FTEL": "ftel",
+    "ETEL": "etel",
+    "CALL_TYPE": "call_type",
     "RECORD_TYPE": "record_type",
     "AUDIO_EXTENSION": "audio_extension",
     "VIDEO_EXTENSION": "video_extension",
@@ -28,13 +31,13 @@ _COLUMN_MAP: dict[str, str] = {
     "DURATION_TIME": "duration_time",
     "CALLER_FILE_NAME": "caller_file_name",
     "CALLEE_FILE_NAME": "callee_file_name",
-    "REASON_CORD": "reason_cord",
-    "REASON_STR": "reason_str",
     "FILE_STATUS": "file_status",
+    "REASON_CODE": "reason_code",
+    "REASON_STR": "reason_str",
+    "FPS": "fps",
     "MCPTT_GROUP_ID": "mcptt_group_id",
     "GROUP_DISPLAY_NAME": "group_display_name",
     "USER_NAME": "user_name",
-    "FPS": "fps",
 }
 
 

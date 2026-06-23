@@ -99,21 +99,24 @@ class RecordInfo(BaseModel):
 
     sip_callid: str
     file_index: int
-    record_type: Optional[str] = None        # AUDIO / VIDEO / AUDIO_VIDEO
+    ftel: Optional[str] = None                # 국번
+    etel: Optional[str] = None                # 전화번호
+    call_type: Optional[str] = None           # IMS / MCPTT
+    record_type: Optional[str] = None         # AUDIO / VIDEO / AUDIO_VIDEO
     audio_extension: Optional[str] = None     # awb / amr
-    video_extension: Optional[str] = None
+    video_extension: Optional[str] = None     # h264
     create_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
-    duration_time: Optional[str] = None       # "00:00:00.668"
+    duration_time: Optional[str] = None       # "00:01:31"
     caller_file_name: Optional[str] = None
     callee_file_name: Optional[str] = None
-    reason_cord: Optional[int] = None         # 실제 컬럼명 오타(REASON_CORD)
-    reason_str: Optional[str] = None
     file_status: Optional[int] = None         # 0 저장중 / 1 부분 / 2 완료 / -1 실패
+    reason_code: Optional[int] = None         # 실제 컬럼 REASON_CODE
+    reason_str: Optional[str] = None
+    fps: Optional[str] = None                 # 예: "16,13"
     mcptt_group_id: Optional[str] = None
     group_display_name: Optional[str] = None
     user_name: Optional[str] = None
-    fps: Optional[str] = None
 
     @field_validator("duration_time", "fps", "mcptt_group_id", mode="before")
     @classmethod
