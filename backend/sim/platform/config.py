@@ -110,6 +110,7 @@ def _apply_env(cfg: SimConfig) -> SimConfig:
     db.user = g("UVCS_DB_USER", db.user)
     db.password = g("UVCS_DB_PASSWORD", db.password)
     db.database = g("UVCS_DB_NAME", db.database)
+    db.charset = g("UVCS_DB_CHARSET", db.charset)
 
     r = cfg.rmq
     if g("UVCS_RMQ_ENABLED") is not None:
