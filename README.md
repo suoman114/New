@@ -141,6 +141,11 @@ cd frontend && npm run build                        # tsc + vite
 - **AMR-WB 인코딩(`encode_source`)**: ffmpeg `libvo_amrwbenc` 가용 시 실 음원→AMR-WB 인코딩.
   Ubuntu 기본 ffmpeg 은 AMR-WB 인코더 미포함이라 결정론적 합성으로 폴백(인코더 빌드 시 자동 사용).
 
+### 주입 모드
+- **`tapper_udp`(기본)**: VCSM(:10000)/VCMM(:10001~)로 직접 UDP 송신(VCTP 우회).
+- **`pcap_mirror`**: scapy 로 L3/UDP 패킷을 NIC 에 주입 → 실 VCTP 가 libpcap 미러로 캡처
+  (src IP 위장 가능). `inject_mode: pcap_mirror`(또는 `UVCS_INJECT_MODE`), scapy + root 필요.
+
 ### 남은 확장 지점
-- H.264 영상 트래픽 송출 엔진(구현됨) — 실 영상 소스 인코딩 연결
-- `pcap_mirror` 주입 모드(실 VCTP 까지 시험)
+- 실 영상 소스 인코딩 연결(H.264 송출 엔진은 구현됨)
+- AMR-WB **인코더** 빌드(libvo_amrwbenc) 환경에서 실 음원 인코딩 자동 사용

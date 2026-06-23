@@ -337,4 +337,6 @@ cd frontend && npm install && npm run dev
 - [x] H.264 영상 송출 엔진: NAL→RTP(FU-A/Single) 스트림 + IMS-VIDEO 타임라인 + video 골든 PASS/FAIL (`backend/sim/rtp/h264_stream.py`)
       — IMS-VIDEO 데모 동작(125 NAL→125 pkt)
 - [x] 실 코덱 연동: ffmpeg AMR-WB **디코딩 검증**(check_decodable, 서버 .awb→PCM 재생시간) + encode_source ffmpeg 인코딩 경로(libvo_amrwbenc 가용 시) (`backend/sim/validator/decode_check.py`)
-      — 132건 통과. 라이브 루프 17/17(실 MariaDB+RabbitMQ+ffmpeg 디코딩). pcap_mirror 만 확장 지점
+      — 라이브 루프 17/17(실 MariaDB+RabbitMQ+ffmpeg 디코딩)
+- [x] pcap_mirror 주입 모드: scapy L3/UDP 패킷 NIC 주입(실 VCTP libpcap 미러 대상, src IP 위장) (`backend/sim/tapper/pcap_feed.py`)
+      — 134건 통과. lo 캡처 E2E 검증(시나리오→pcap 주입→캡처). inject_mode=pcap_mirror 로 AppState 자동 선택

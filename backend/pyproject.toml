@@ -19,6 +19,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+pcap = ["scapy>=2.5"]          # pcap_mirror 주입 모드(실 VCTP 미러 캡처 대상)
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",

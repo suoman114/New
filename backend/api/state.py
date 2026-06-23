@@ -57,6 +57,10 @@ class AppState:
     def _make_feeder(self) -> Feeder:
         if self._feeder_factory:
             return self._feeder_factory()
+        if self.config.inject_mode == "pcap_mirror":
+            from sim.tapper import PcapFeeder, scapy_available
+            if scapy_available():
+                return PcapFeeder(self.config.tapper, bus=self.bus)
         return TapperFeeder(self.config.tapper, bus=self.bus)
 
     async def run_scenario(self, scenario_id: str, *, session_count: int = 1,
@@ -82,7 +86,7 @@ class AppState:
         feeder = self._make_feeder()
         started = False
         try:
-            if isinstance(feeder, TapperFeeder):
+            if hasattr(feeder, "start"):     # TapperFeeder/PcapFeeder
                 await feeder.start()
                 started = True
             ports = RtpPortAllocator(self.config.tapper.rtp_port_base,
@@ -105,7 +109,7 @@ class AppState:
             self.sessions[session_id].state = "ERROR"
             self.sessions[session_id].summary = f"error: {exc}"
         finally:
-            if started and isinstance(feeder, TapperFeeder):
+            if started and hasattr(feeder, "close"):
                 await feeder.close()
 
     # 이벤트 폭주 방지: 이 규모를 넘는 부하는 EventBus 발행을 끈다(메트릭만 수집).

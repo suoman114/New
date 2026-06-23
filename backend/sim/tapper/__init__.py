@@ -6,5 +6,7 @@
 from .port_alloc import RtpPortAllocator
 from .pacing import pace, pace_fixed
 from .udp_sender import TapperFeeder
+from .pcap_feed import PcapFeeder, scapy_available
 
-__all__ = ["RtpPortAllocator", "pace", "pace_fixed", "TapperFeeder"]
+__all__ = ["RtpPortAllocator", "pace", "pace_fixed", "TapperFeeder",
+           "PcapFeeder", "scapy_available"]
