@@ -39,8 +39,9 @@ _COLUMN_MAP: dict[str, str] = {
 
 
 def row_to_record(row: dict) -> RecordInfo:
-    """DB row(dict, 대문자 키) → RecordInfo."""
-    kwargs = {field: row.get(col) for col, field in _COLUMN_MAP.items() if col in row}
+    """DB row(dict) → RecordInfo. 컬럼명 대소문자 무관, 존재하는 컬럼만 매핑."""
+    up = {(k.upper() if isinstance(k, str) else k): v for k, v in row.items()}
+    kwargs = {field: up.get(col) for col, field in _COLUMN_MAP.items() if col in up}
     return RecordInfo.model_validate(kwargs)
 
 
@@ -101,13 +102,14 @@ class SqlAlchemyRecordInfoRepository:
     def _query(self, where_sql: str, params: dict) -> list[RecordInfo]:
         from sqlalchemy import text
 
-        # 컬럼명을 명시적으로 SELECT (안전 + 매핑 일관)
-        cols = ", ".join(_COLUMN_MAP.keys())
-        sql = text(f"SELECT {cols} FROM {self._table} WHERE {where_sql} "
-                   f"ORDER BY FILE_INDEX ASC")
+        # SELECT * 로 스키마 내성 확보(실 테이블의 컬럼이 달라도/추가돼도 안 깨짐).
+        # 매핑은 존재하는 컬럼만, 정렬은 Python 에서(FILE_INDEX 없을 수도 있음).
+        sql = text(f"SELECT * FROM {self._table} WHERE {where_sql}")
         with self._get_engine().connect() as conn:
             result = conn.execute(sql, params)
-            return [row_to_record(dict(r._mapping)) for r in result]
+            rows = [row_to_record(dict(r._mapping)) for r in result]
+        rows.sort(key=lambda r: r.file_index if r.file_index is not None else 0)
+        return rows
 
     def by_call_id(self, sip_callid: str) -> list[RecordInfo]:
         return self._query("SIP_CALLID = :cid", {"cid": sip_callid})
