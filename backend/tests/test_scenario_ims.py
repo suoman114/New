@@ -99,4 +99,6 @@ async def test_ims_validator_audio_pass(tmp_path: Path):
     v = Validator(fs_root=str(tmp_path), mode_set_max=8)
     result = await v.validate(run.expectations, run.spurts)
     audio = [i for i in result.items if i.category == "AUDIO"]
-    assert len(audio) == 2 and all(i.status == "PASS" for i in audio)
+    # 레그별 byte 비교 2건(+ ffmpeg 가용 시 decode 검증). 전부 PASS.
+    compares = [i for i in audio if i.name in ("audio[0]", "audio[1]")]
+    assert len(compares) == 2 and all(i.status == "PASS" for i in audio)

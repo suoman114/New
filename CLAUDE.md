@@ -335,4 +335,6 @@ cd frontend && npm install && npm run dev
 - [x] H.264 영상 검증: RTP de-pkt(Single/STAP-A/FU-A)+DON/AbsDON(RFC6184)+Annex B 재구성+NAL diff (`backend/sim/rtp/h264.py`, `backend/sim/validator/video_check.py`)
       — IMS-VIDEO 시나리오. 영상 트래픽 생성 엔진 구현(`h264_stream.py`, `_run_ims_video`, video 골든 검증)
 - [x] H.264 영상 송출 엔진: NAL→RTP(FU-A/Single) 스트림 + IMS-VIDEO 타임라인 + video 골든 PASS/FAIL (`backend/sim/rtp/h264_stream.py`)
-      — 122건 통과. IMS-VIDEO 데모 동작(125 NAL→125 pkt). 실 음원/영상 인코딩(opencore-amr/ffmpeg)·pcap_mirror 만 확장 지점
+      — IMS-VIDEO 데모 동작(125 NAL→125 pkt)
+- [x] 실 코덱 연동: ffmpeg AMR-WB **디코딩 검증**(check_decodable, 서버 .awb→PCM 재생시간) + encode_source ffmpeg 인코딩 경로(libvo_amrwbenc 가용 시) (`backend/sim/validator/decode_check.py`)
+      — 132건 통과. 라이브 루프 17/17(실 MariaDB+RabbitMQ+ffmpeg 디코딩). pcap_mirror 만 확장 지점

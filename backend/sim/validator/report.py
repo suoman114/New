@@ -13,6 +13,7 @@ from ..platform.models import FlowEvent, ValidationItem, ValidationResult
 from ..scenario.expectations import ScenarioExpectations
 from .audio_check import compare_awb
 from .db_check import check_db
+from .decode_check import check_decodable
 from .file_check import check_files
 from .reconstruct import reconstruct_awb, reconstruct_from_packets
 from .video_check import compare_h264, reconstruct_annexb
@@ -57,10 +58,14 @@ class Validator:
             actual = self._server_file_bytes(spurt_exp)
             if actual is not None:
                 if getattr(sr, "media_kind", "audio") == "video":
-                    item = compare_h264(golden, actual, name=f"video[{sr.index}]")
+                    result.add(compare_h264(golden, actual, name=f"video[{sr.index}]"))
                 else:
-                    item = compare_awb(golden, actual, name=f"audio[{sr.index}]")
-                result.add(item)
+                    result.add(compare_awb(golden, actual, name=f"audio[{sr.index}]"))
+                    # 실 ffmpeg 디코더로 .awb 유효성/재생시간 검증(가용 시)
+                    exp_ms = spurt_exp.duration_ms if spurt_exp else 0
+                    dec = check_decodable(actual, exp_ms, name=f"audio[{sr.index}]")
+                    if dec is not None:
+                        result.add(dec)
 
         await self._emit(result)
         return result

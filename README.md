@@ -135,7 +135,12 @@ cd frontend && npm run build                        # tsc + vite
 - 개발 브랜치: `claude/eager-carson-49av4h`. 스펙 변경은 `docs/specs` + `CLAUDE.md` 동시 갱신.
 - 진행 상태 보드: `CLAUDE.md §10`.
 
-### 남은 확장 지점 (실 미디어 소스/네이티브 라이브러리 필요)
-- H.264 **영상 트래픽 송출** 타임라인 엔진 (검증 라이브러리는 완성)
-- opencore-amr/ffmpeg **실 음원 인코딩** (`encode_source` 인터페이스 개방)
+### 실 코덱 연동
+- **AMR-WB 디코딩(실 ffmpeg)**: 서버 저장 `.awb` 가 유효한 AMR-WB 이며 기대 재생시간으로
+  디코딩되는지 실 ffmpeg 으로 검증(`validator.check_decodable`). ffmpeg 미설치 시 자동 스킵.
+- **AMR-WB 인코딩(`encode_source`)**: ffmpeg `libvo_amrwbenc` 가용 시 실 음원→AMR-WB 인코딩.
+  Ubuntu 기본 ffmpeg 은 AMR-WB 인코더 미포함이라 결정론적 합성으로 폴백(인코더 빌드 시 자동 사용).
+
+### 남은 확장 지점
+- H.264 영상 트래픽 송출 엔진(구현됨) — 실 영상 소스 인코딩 연결
 - `pcap_mirror` 주입 모드(실 VCTP 까지 시험)

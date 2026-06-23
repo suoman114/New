@@ -198,6 +198,26 @@ def parse_be(payload: bytes) -> list[AmrFrame]:
     return frames
 
 
+def parse_storage(data: bytes, *, wb: bool = True) -> list[AmrFrame]:
+    """File Storage(.awb/.amr) byte 열 → frame 리스트 (magic 이후 record 파싱).
+
+    ffmpeg/opencore 가 인코딩한 실 음원 .awb 를 우리 frame 모델로 역파싱할 때 사용.
+    """
+    magic = b"#!AMR-WB\n" if wb else b"#!AMR\n"
+    body = data[len(magic):] if data.startswith(magic) else data
+    frames: list[AmrFrame] = []
+    i = 0
+    while i < len(body):
+        h = body[i]
+        ft = (h >> 3) & 0x0F
+        q = (h >> 2) & 1
+        i += 1
+        n = amrwb_frame_bytes(ft) if ft <= 9 else 0
+        frames.append(AmrFrame(ft=ft, data=bytes(body[i:i + n]), q=q))
+        i += n
+    return frames
+
+
 def packetize(frames: list[AmrFrame], *, octet_align: bool = True,
               cmr: int = CMR_NO_REQUEST) -> bytes:
     """octet_align 에 따라 OA/BE payload 생성."""

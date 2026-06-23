@@ -9,6 +9,13 @@ from .reconstruct import reconstruct_awb, storage_record, MAGIC_AMRWB, MAGIC_AMR
 from .audio_check import compare_awb
 from .file_check import check_files, check_spurt_file, find_file
 from .db_check import check_db
+from .decode_check import (
+    amrwb_decoder_available,
+    amrwb_encoder_available,
+    check_decodable,
+    decode_awb_pcm,
+    ffmpeg_path,
+)
 from .video_check import compare_h264, reconstruct_annexb, reconstruct_annexb_interleaved
 from .report import Validator, aggregate
 
@@ -17,5 +24,7 @@ __all__ = [
     "reconstruct_awb", "storage_record", "MAGIC_AMRWB", "MAGIC_AMR",
     "compare_awb", "check_files", "check_spurt_file", "find_file", "check_db",
     "compare_h264", "reconstruct_annexb", "reconstruct_annexb_interleaved",
+    "ffmpeg_path", "amrwb_decoder_available", "amrwb_encoder_available",
+    "decode_awb_pcm", "check_decodable",
     "Validator", "aggregate",
 ]
