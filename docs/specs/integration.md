@@ -47,7 +47,22 @@ GET /api/integration/health
 - 파일 루트 부재 → 파일/오디오 검증 스킵(기대 파일 미발견).
 - 즉, **부분 연동만으로도** 가능한 검증을 수행하고 리포트한다.
 
-## 5. 주의
+## 5. 라이브 통합 데모/테스트 (실 자원)
+외부 uVCS 없이도 **실 자원**으로 전체 루프를 검증한다:
+- `backend/integration_live.py` — 실 uvicorn(HTTP) + 실 UDP 주입(FakeSUT 수신) +
+  실 SQLite(`TBL_RECORD_INFO`) + (브로커 가동 시)실 RabbitMQ shadow monitor → `validate_session`.
+  결과: MCPTT-GROUP-FLOOR **FILE/DB/AUDIO/RMQ 전 항목 PASS**.
+- `backend/tests/test_live_integration.py` — 실 SQLite SQL SELECT, 실 UDP 와이어 라운드트립.
+- `backend/tests/test_rmq_live.py` — 실 RabbitMQ 브로커로 `RmqMonitor` consume 경로(브로커 미가동 시 skip).
+
+로컬 RabbitMQ 기동 예(테스트용):
+```bash
+apt-get install -y rabbitmq-server
+HOME=/tmp/rmq RABBITMQ_MNESIA_BASE=/tmp/rmq/data rabbitmq-server   # 5672 listen
+```
+
+## 6. 주의
 - 시뮬레이터는 SUT 와 동일 host 또는 원격 모두 지원. 원격이면 램디스크/NAS 를 마운트하거나
   파일 접근 경로를 `UVCS_REC_*` 로 지정한다.
 - `pcap_mirror` 모드(실 VCTP 까지 시험)는 2차 — 현재 기본은 `tapper_udp`(VCTP 우회 직접 주입).
+- 실 MariaDB 드라이버(`pymysql`/`cryptography`)는 정상 휠 환경에서 설치 필요. SQLite 는 즉시 동작.

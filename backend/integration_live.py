@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import socket
 import sqlite3
@@ -31,6 +32,8 @@ from sim.platform.models import RecordInfo
 from sim.rtp import RtpPacket
 from sim.validator.reconstruct import reconstruct_from_packets
 
+RMQ_EXCHANGE = "uvcs.live"
+
 DDL = """
 CREATE TABLE IF NOT EXISTS TBL_RECORD_INFO (
   SIP_CALLID TEXT, FILE_INDEX INTEGER, RECORD_TYPE TEXT, AUDIO_EXTENSION TEXT,
@@ -46,6 +49,46 @@ def _free_port() -> int:
     p = s.getsockname()[1]
     s.close()
     return p
+
+
+def _broker_up(host="127.0.0.1", port=5672) -> bool:
+    s = socket.socket()
+    s.settimeout(1)
+    try:
+        return s.connect_ex((host, port)) == 0
+    finally:
+        s.close()
+
+
+async def _publish_floor(call_id: str, talk_spurts) -> None:
+    """실 브로커로 VCMM→VCMC recording_change(TAKEN/IDLE) 발행."""
+    import aio_pika
+
+    conn = await aio_pika.connect_robust(host="127.0.0.1", port=5672,
+                                         login="guest", password="guest")
+    ch = await conn.channel()
+    ex = await ch.declare_exchange(RMQ_EXCHANGE, aio_pika.ExchangeType.TOPIC, durable=True)
+    n = 0
+    for sp in talk_spurts:
+        for floor in ("TAKEN", "IDLE"):
+            n += 1
+            txn = f"t{n}"
+            # VCMM_0 → VCMC recording_change_req
+            req = {"header": {"type": "recording_change_req", "callId": call_id,
+                              "transactionId": txn, "msgFrom": "VCMM_0", "trxType": 0,
+                              "reasonCode": 2000, "reason": "Success"},
+                   "body": {"type": floor, "caller_mdn": sp.talker_mdn,
+                            "audio_extension": "awb"}}
+            # VCMC → VCMM_0 recording_change_res (동일 transactionId)
+            res = {"header": {"type": "recording_change_res", "callId": call_id,
+                              "transactionId": txn, "msgFrom": "VCMC", "trxType": 0,
+                              "reasonCode": 0},
+                   "body": {"type": floor, "file_index": 5000 + n,
+                            "save_file_name": f"M_{call_id}_{sp.talker_digits}"}}
+            for m in (req, res):
+                await ex.publish(aio_pika.Message(json.dumps(m).encode()),
+                                 routing_key="rec.change")
+    await conn.close()
 
 
 def http_get(url: str) -> str:
@@ -105,6 +148,17 @@ async def live_loop(cfg: SimConfig, db_path: str, rec_root: str) -> None:
         asyncio.DatagramProtocol, local_addr=(cfg.tapper.sip_host, cfg.tapper.sip_port))
 
     state = AppState(config=cfg)
+    rmq_live = cfg.rmq.enabled and _broker_up(cfg.rmq.host, cfg.rmq.port)
+    if rmq_live:
+        # 실 VCMM 대역: exchange 선언 후 RmqMonitor(shadow consumer) 실 브로커 연결
+        import aio_pika
+        c = await aio_pika.connect_robust(host=cfg.rmq.host, port=cfg.rmq.port,
+                                          login=cfg.rmq.user, password=cfg.rmq.password)
+        cch = await c.channel()
+        await cch.declare_exchange(RMQ_EXCHANGE, aio_pika.ExchangeType.TOPIC, durable=True)
+        await c.close()
+        connected = await state.start_rmq()
+        print(f"  [RMQ ] shadow monitor connected = {connected} (exchange={RMQ_EXCHANGE})")
     try:
         # 1) 시나리오 실행 → 실제 UDP 로 SIP/RTP 주입(FakeSUT 가 수신)
         sids = await state.run_scenario("MCPTT-GROUP-FLOOR", wait=True)
@@ -112,6 +166,18 @@ async def live_loop(cfg: SimConfig, db_path: str, rec_root: str) -> None:
         run = state.run_results[sid]
         await asyncio.sleep(0.1)
         print(f"  [WIRE] FakeSUT 수신 RTP packets = {len(sink.rtp)}")
+
+        # 1b) 실 브로커로 floor(TAKEN/IDLE) 발행 → RmqMonitor 가 consume
+        if rmq_live:
+            await _publish_floor(run.call_id, run.expectations.talk_spurts)
+            for _ in range(50):
+                tr = state.rmq.trackers.get(run.call_id)
+                if tr and tr.change_sequence == run.expectations.rmq_change_sequence:
+                    break
+                await asyncio.sleep(0.1)
+            seq = state.rmq.trackers.get(run.call_id)
+            print(f"  [RMQ ] consume floor seq = "
+                  f"{seq.change_sequence if seq else None}")
 
         # 2) FakeSUT '녹취 서버' 산출물 생성: 수신 RTP → .awb 파일 + TBL_RECORD_INFO 행
         con = sqlite3.connect(db_path)
@@ -153,6 +219,8 @@ async def live_loop(cfg: SimConfig, db_path: str, rec_root: str) -> None:
               f"({sum(1 for i in result.items if i.status=='PASS')} PASS / "
               f"{sum(1 for i in result.items if i.status=='FAIL')} FAIL) ==")
     finally:
+        if rmq_live:
+            await state.rmq.close()
         rtp_t.close()
         sip_t.close()
 
@@ -163,15 +231,29 @@ def main() -> None:
     rec_root = os.path.join(tmp, "ramdisk")
     os.makedirs(rec_root, exist_ok=True)
 
+    rmq_on = _broker_up()
     env = {
         "UVCS_DB_DRIVER": "sqlite", "UVCS_DB_NAME": db_path,
-        "UVCS_RMQ_ENABLED": "false",
+        "UVCS_RMQ_ENABLED": "true" if rmq_on else "false",
+        "UVCS_RMQ_EXCHANGE": RMQ_EXCHANGE,
         "UVCS_REC_RAMDISK": rec_root, "UVCS_REC_NAS": rec_root,
     }
     for k, v in env.items():
         os.environ[k] = v
 
+    if rmq_on:
+        # exchange 를 먼저 선언해야 HTTP 서브프로세스의 shadow monitor(passive)가 붙는다
+        async def _declare():
+            import aio_pika
+            c = await aio_pika.connect_robust(host="127.0.0.1", port=5672,
+                                              login="guest", password="guest")
+            ch = await c.channel()
+            await ch.declare_exchange(RMQ_EXCHANGE, aio_pika.ExchangeType.TOPIC, durable=True)
+            await c.close()
+        asyncio.run(_declare())
+
     print("=== 1. 실 HTTP 서버(uvicorn) 부팅 + 실제 HTTP 호출 ===")
+    print(f"  (RabbitMQ broker = {'UP' if rmq_on else 'down'})")
     real_http_smoke(env)
 
     print("\n=== 2. 실 UDP 주입 + 실 SQLite/파일 + 검증 루프 ===")
