@@ -260,4 +260,10 @@ mvn spring-boot:run
 > 공통 패턴: 각 영역의 **순수 로직을 util 로 추출 → JUnit 고정 → 기존 서비스는 위임(동작 보존)**.
 > 다음 단계는 통합/E2E(`@WebMvcTest` 컨트롤러 계약, ansible dry-run, 파이프라인 오케스트레이션) 확장.
 
+### 통합/E2E (진행 중)
+- [x] `@WebMvcTest(ServerController)` REST 계약: ApiResponse 형태(success/message/data), 검증 실패 400(IP/공백),
+      bulk 빈 목록 400, CRUD 라우팅. (7건) — Spring 슬라이스 부팅 확인. **전체 60건 통과.**
+- [ ] PipelineService 오케스트레이션(MANUAL 승인 waitForApproval/approve) 테스트 — DB/@Async 의존으로 슬라이스/목 설계 필요.
+- [ ] ansible 플레이북 CentOS7/RHEL8 변수 분기(OsTarget) 실제 반영 — 대상 환경/ansible 툴링 필요(현재 미설치).
+
   
